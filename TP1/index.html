@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Motores Pistoneros - Predimensionamiento Aeronáutico</title>
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Kendo UI for jQuery -->
+    <link rel="stylesheet" href="https://kendo.cdn.telerik.com/2024.1.319/styles/kendo.common.min.css">
+    <link rel="stylesheet" href="https://kendo.cdn.telerik.com/2024.1.319/styles/kendo.default.min.css">
+    <script src="https://kendo.cdn.telerik.com/2024.1.319/js/kendo.all.min.js"></script>
+    
+    <!-- Estilos propios -->
+    <link rel="stylesheet" href="general.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Calculadora de Motores Pistoneros</h1>
+            <p>Predimensionamiento de Motores Alternativos para Uso Aeronáutico</p>
+        </header>
+
+        <main>
+            <!-- Sección de selección de tipo de ciclo -->
+            <section class="ciclo-section">
+                <h2>Seleccionar Tipo de Ciclo</h2>
+                <div id="ciclo-buttons">
+                    <button class="btn-ciclo" data-ciclo="otto">Ciclo Otto</button>
+                    <button class="btn-ciclo" data-ciclo="diesel">Ciclo Diesel</button>
+                    <button class="btn-ciclo" data-ciclo="sabath">Ciclo Sabathé</button>
+                    <button class="btn-ciclo" data-ciclo="comparacion">Comparación de Ciclos</button>
+                </div>
+            </section>
+
+            <!-- Sección de parámetros de entrada -->
+            <section class="parametros-section">
+                <h2>Parámetros de Entrada</h2>
+                <form id="parametros-form">
+                    <!-- Altitud -->
+                    <div class="form-group">
+                        <label for="altitud">Altitud:</label>
+                        <div class="campo-con-unidad">
+                            <input type="text" id="altitud" name="altitud" class="parseado" placeholder="Ej: 2.500" data-tipo="altitud">
+                            <select id="unidad-altitud" class="dropdown-unidad">
+                                <option value="m">metros (m)</option>
+                                <option value="ft">pies (ft)</option>
+                                <option value="km">kilómetros (km)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Potencia Requerida -->
+                    <div class="form-group">
+                        <label for="potencia">Potencia Requerida (kW):</label>
+                        <input type="text" id="potencia" name="potencia" class="parseado" placeholder="Ej: 150,5" data-tipo="potencia">
+                    </div>
+
+                    <!-- Combustible -->
+                    <div class="form-group">
+                        <label for="combustible">Combustible:</label>
+                        <input type="text" id="combustible" name="combustible" placeholder="Ej: Gasolina, Jet-A, etc.">
+                    </div>
+
+                    <!-- Mezcla Relativa -->
+                    <div class="form-group">
+                        <label for="mezcla-relativa">Mezcla Relativa (λ):</label>
+                        <input type="text" id="mezcla-relativa" name="mezcla-relativa" class="parseado" placeholder="Ej: 1,0" data-tipo="adimensional">
+                    </div>
+
+                    <!-- RPM -->
+                    <div class="form-group">
+                        <label for="rpm">RPM:</label>
+                        <input type="text" id="rpm" name="rpm" class="parseado" placeholder="Ej: 2.500" data-tipo="adimensional">
+                    </div>
+
+                    <!-- k del aire -->
+                    <div class="form-group">
+                        <label for="k-aire">k del Aire (γ):</label>
+                        <input type="text" id="k-aire" name="k-aire" placeholder="1,4" value="1,4">
+                    </div>
+
+                    <!-- Rendimiento Mecánico -->
+                    <div class="form-group">
+                        <label for="rendimiento-mecanico">Rendimiento Mecánico (0 a 1):</label>
+                        <input type="text" id="rendimiento-mecanico" name="rendimiento-mecanico" class="parseado" placeholder="Ej: 0,85" data-tipo="adimensional">
+                    </div>
+                    
+                    <button type="button" id="btn-calcular" class="btn-primary">Calcular</button>
+                    <button type="reset" class="btn-secondary">Limpiar</button>
+                </form>
+            </section>
+
+            <!-- Sección de resultados -->
+            <section class="resultados-section" id="resultados-section" style="display:none;">
+                <h2>Resultados</h2>
+                <div id="resultados-container">
+                    <!-- Los resultados se insertarán aquí dinámicamente -->
+                </div>
+            </section>
+
+            <!-- Área para componentes (gráficas, etc.) -->
+            <section class="componentes-section" id="componentes-section">
+                <!-- Los componentes se cargarán aquí -->
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 - Calculadora de Motores Pistoneros - UTN Haedo</p>
+        </footer>
+    </div>
+
+    <!-- Scripts propios -->
+    <script src="behaviour.js"></script>
+</body>
+</html>

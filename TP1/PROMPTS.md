@@ -52,6 +52,46 @@
 
 ---
 
+### PROMPT 7
+**Solicitud:**
+> Continuaremos del siguiente modo: Actualiza el index.html para que se adapte al mockup-predimensionador.html que encontrarás en la misma carpeta. Mantén los estilos del index.htm, considera el mockup SOLO para maquetado.
+
+**Respuesta:** Estructura del `index.html` reorganizada según el mockup: layout de dos columnas (30%-70%), panel izquierdo con hero, inputs, historial; panel derecho con tabla de estados, gráficos y resumen del ciclo.
+
+---
+
+### PROMPT 8
+**Solicitud:**
+> Observa que el maquetado terminó siendo no como el que leíste, terminó estando el panel left ARRIBA del panel right. Sobre las tablas del panel right, la de estados y tiempos mantenlas con un WIDHT tanto como sea posible de forma responsiva, y que tenga un HEIGHT no más grande del que necesita, lo mismo para la tabla de resumen, todo el resto del HEIGHT disponible ocúpalo para la altura de los contenedore que tendrán las gráficas (por ahora placeholders de gráficas).
+
+**Respuesta:** CSS restructurado: layout 30%-70% horizontal con flexbox, tablas con altura auto y ancho responsivo, contenedor de gráficos con flex: 1 para ocupar espacio restante.
+
+---
+
+### PROMPT 9
+**Solicitud:**
+> Reduce a 11px el font size de todos los inputs, reduce el padding de los inputs a la mitad y todo lo que creas necesario para armonizar el tamaño de los inputs con el resto de la App, es apenas visualizable la tabla de historial (está bien que tenga scrollbar vertical, pero es imperativo que se puedan visualizar los últimos 3,5 registros)
+
+**Respuesta:** Font-size inputs a 11px, padding reducido a 3px, gaps ajustados a 4px, botones compactos, altura mínima del historial a 120px para 3.5 registros visibles.
+
+---
+
+### PROMPT 10
+**Solicitud:**
+> Modifica llos inputs para estar en 2 columnas paralelas, donde tenga un texto en la parte de arriba así como está el caso de 'altitud'. Además, quita el "volume selector" que le pusiste a la relación de compresión, que sea un input numérico con flechitas hacia arriba y abajo del kendo. También borra el input "nombre del caso", los radio buttons que estén en línea horizontal y que cuando se seleccione la opción de "comparativa" que los radio button se deshabiliten (ya que no harán falta).
+
+**Respuesta:** Inputs restructurados en 2 columnas con labels arriba, range reemplazado por input numérico, "nombre caso" eliminado, radio buttons en línea horizontal con event listener que deshabilita al seleccionar "Comparativa".
+
+---
+
+### PROMPT 11
+**Solicitud:**
+> Borra las opciones de combustible de los parámetros de entrada, el programa deberá detectar el tipo de combustible a emplear según el ciclo elegido. Adicionalmente, en la tabla de resumen incluye 1 columna nueva que sea la de eficiencia térmica. Adicionalmente, modifica el input de potencia para que se puede seleccionar de ingresar el número en kW o en HP, así como tenemos el input para altitud. Adicionalmente, quita el border rojo que se le hacen a los inputs luego de sacarles el focus. Si se intenta 'CALCULAR' y algún campo queda por completar o tiene un formato no adecuado, que se rechace la solicitud y se ponga en rojo el borde del campo que no se ingresó o se ingresó mal, y que se le quite el borde rojo cuando se ingrese cualquier cosa.
+
+**Respuesta:** Radio buttons de combustible eliminados, potencia ahora con selector kW/HP, eficiencia térmica agregada a tabla de resumen, validación de errores con clase .input-error solo en cálculo, se quita al escribir.
+
+---
+
 ## Notas
 - Formato: Solicitud = cita literal del prompt del usuario | Respuesta = resumen máx. 1 línea
 - Ubicación: `PROMPTS.md` en la raíz de `TP1/`

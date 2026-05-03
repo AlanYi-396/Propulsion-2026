@@ -42,16 +42,17 @@ $(document).ready(function() {
         // Campos con parseado automático
         $(document).on('input', '.parseado', function() {
             parsearNumeroAutomatico($(this));
+            $(this).removeClass('input-error');
+        });
+
+        // Quitar error al escribir en cualquier input
+        $(document).on('input', '#parametros-form input, #parametros-form select', function() {
+            $(this).removeClass('input-error');
         });
 
         // Validación de rendimiento mecánico
         $(document).on('blur', '#rendimiento-mecanico', function() {
             validarRendimientoMecanico($(this));
-        });
-
-        // Validación general de parámetros
-        $(document).on('change', '#parametros-form input, #parametros-form select', function() {
-            validarCampo($(this));
         });
     }
 
@@ -209,20 +210,78 @@ $(document).ready(function() {
      * Realiza el cálculo de predimensionamiento
      */
     function realizarCalculo() {
-        // Validar que se haya seleccionado un ciclo
-        if (!cicloSeleccionado) {
+        // Limpiar errores previos
+        $('#parametros-form').find('input, select').removeClass('input-error');
+
+        // Validar ciclo
+        const ciclo = $('#ciclo-selector').val();
+        if (!ciclo) {
+            $('#ciclo-selector').addClass('input-error');
             mostrarAlerta('Selecciona un tipo de ciclo antes de calcular', 'warning');
+            return;
+        }
+
+        // Validar campos requeridos
+        const camposRequeridos = [
+            { id: 'rpm', nombre: 'RPM' },
+            { id: 'potencia', nombre: 'Potencia' },
+            { id: 'altitud', nombre: 'Altitud' },
+            { id: 'mezcla-relativa', nombre: 'Relación de Compresión' },
+            { id: 'rendimiento-mecanico', nombre: 'Rendimiento Mecánico' }
+        ];
+
+        let hayErrores = false;
+
+        camposRequeridos.forEach(campo => {
+            const $campo = $(`#${campo.id}`);
+            const valor = $campo.val().trim();
+
+            // Verificar que no esté vacío
+            if (valor === '') {
+                $campo.addClass('input-error');
+                hayErrores = true;
+                return;
+            }
+
+            // Verificar que sea un número válido
+            const numero = convertirANumero($campo);
+            if (numero === null) {
+                $campo.addClass('input-error');
+                hayErrores = true;
+                return;
+            }
+
+            // Validaciones específicas
+            if (campo.id === 'rendimiento-mecanico') {
+                if (numero <= 0 || numero >= 1) {
+                    $campo.addClass('input-error');
+                    hayErrores = true;
+                    return;
+                }
+            }
+
+            // RPM debe ser positivo
+            if (campo.id === 'rpm' && numero <= 0) {
+                $campo.addClass('input-error');
+                hayErrores = true;
+                return;
+            }
+
+            // Potencia debe ser positiva
+            if (campo.id === 'potencia' && numero <= 0) {
+                $campo.addClass('input-error');
+                hayErrores = true;
+                return;
+            }
+        });
+
+        if (hayErrores) {
+            mostrarAlerta('Completa todos los parámetros correctamente', 'error');
             return;
         }
 
         // Obtener parámetros del formulario
         const parametros = obtenerParametros();
-
-        // Validar parámetros
-        if (!parametrosValidos(parametros)) {
-            mostrarAlerta('Completa todos los parámetros correctamente', 'error');
-            return;
-        }
 
         // Mostrar resultado de recopilación de datos
         console.log('Parámetros recopilados:', parametros);
@@ -240,13 +299,15 @@ $(document).ready(function() {
                 valor: convertirANumero($('#altitud')),
                 unidad: $('#unidad-altitud').val()
             },
-            potencia: convertirANumero($('#potencia')),
-            combustible: $('#combustible').val().trim(),
+            potencia: {
+                valor: convertirANumero($('#potencia')),
+                unidad: $('#unidad-potencia').val()
+            },
             mezlaRelativa: convertirANumero($('#mezcla-relativa')),
             rpm: convertirANumero($('#rpm')),
             kAire: convertirANumero($('#k-aire')),
             rendimientoMecanico: convertirANumero($('#rendimiento-mecanico')),
-            ciclo: cicloSeleccionado
+            ciclo: $('#ciclo-selector').val()
         };
 
         return parametros;

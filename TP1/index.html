@@ -18,99 +18,165 @@
     <link rel="stylesheet" href="general.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Calculadora de Motores Pistoneros</h1>
-            <p>Predimensionamiento de Motores Alternativos para Uso Aeronáutico</p>
-        </header>
-
-        <main>
-            <!-- Sección de selección de tipo de ciclo -->
-            <section class="ciclo-section">
-                <h2>Seleccionar Tipo de Ciclo</h2>
-                <div id="ciclo-buttons">
-                    <button class="btn-ciclo" data-ciclo="otto">Ciclo Otto</button>
-                    <button class="btn-ciclo" data-ciclo="diesel">Ciclo Diesel</button>
-                    <button class="btn-ciclo" data-ciclo="sabath">Ciclo Sabathé</button>
-                    <button class="btn-ciclo" data-ciclo="comparacion">Comparación de Ciclos</button>
+    <div id="app">
+        <div class="row">
+            <!-- Panel Izquierdo (30%) -->
+            <div class="panel left">
+                <!-- Hero Section -->
+                <div class="card hero">
+                    <div>
+                        <div class="title">Predimensionador de Motores</div>
+                        <div>[Imagen técnica conceptual aquí]</div>
+                        <div class="small">Cálculo de ciclos termodinámicos alternativos</div>
+                    </div>
                 </div>
-            </section>
 
-            <!-- Sección de parámetros de entrada -->
-            <section class="parametros-section">
-                <h2>Parámetros de Entrada</h2>
-                <form id="parametros-form">
-                    <!-- Altitud -->
-                    <div class="form-group">
-                        <label for="altitud">Altitud:</label>
-                        <div class="campo-con-unidad">
-                            <input type="text" id="altitud" name="altitud" class="parseado" placeholder="Ej: 2.500" data-tipo="altitud">
-                            <select id="unidad-altitud" class="dropdown-unidad">
-                                <option value="m">metros (m)</option>
-                                <option value="ft">pies (ft)</option>
-                                <option value="km">kilómetros (km)</option>
+                <!-- Sección de Parámetros de Entrada -->
+                <div class="card inputs">
+                    <div class="small"><b>Parámetros de Entrada</b></div>
+                    <form id="parametros-form">
+                        <div class="form-columns">
+                            <div class="form-group">
+                                <label for="rpm">RPM:</label>
+                                <input type="text" id="rpm" name="rpm" class="parseado" placeholder="Ej: 2.500" data-tipo="adimensional">
+                            </div>
+                            <div class="form-group">
+                                <label for="potencia">Potencia:</label>
+                                <div class="campo-con-unidad">
+                                    <input type="text" id="potencia" name="potencia" class="parseado" placeholder="Ej: 150" data-tipo="potencia">
+                                    <select id="unidad-potencia" class="dropdown-unidad">
+                                        <option value="kw">kW</option>
+                                        <option value="hp">HP</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="altitud">Altitud:</label>
+                                <div class="campo-con-unidad">
+                                    <input type="text" id="altitud" name="altitud" class="parseado" placeholder="Ej: 2.500" data-tipo="altitud">
+                                    <select id="unidad-altitud" class="dropdown-unidad">
+                                        <option value="m">m</option>
+                                        <option value="ft">ft</option>
+                                        <option value="km">km</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="mezcla-relativa">Relación Compresión:</label>
+                                <input type="text" id="mezcla-relativa" name="mezcla-relativa" class="parseado" placeholder="Ej: 8,0" data-tipo="adimensional">
+                            </div>
+                            <div class="form-group">
+                                <label for="k-aire">k del Aire (γ):</label>
+                                <input type="text" id="k-aire" name="k-aire" placeholder="1,4" value="1,4">
+                            </div>
+                            <div class="form-group">
+                                <label for="rendimiento-mecanico">Rend. Mecánico:</label>
+                                <input type="text" id="rendimiento-mecanico" name="rendimiento-mecanico" class="parseado" placeholder="Ej: 0,85" data-tipo="adimensional">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group full-width">
+                            <label for="ciclo-selector">Ciclo:</label>
+                            <select id="ciclo-selector">
+                                <option value="otto">Ciclo Otto</option>
+                                <option value="diesel">Ciclo Diesel</option>
+                                <option value="sabath">Ciclo Sabathé</option>
+                                <option value="comparacion">Comparativa</option>
                             </select>
                         </div>
-                    </div>
 
-                    <!-- Potencia Requerida -->
-                    <div class="form-group">
-                        <label for="potencia">Potencia Requerida (kW):</label>
-                        <input type="text" id="potencia" name="potencia" class="parseado" placeholder="Ej: 150,5" data-tipo="potencia">
-                    </div>
-
-                    <!-- Combustible -->
-                    <div class="form-group">
-                        <label for="combustible">Combustible:</label>
-                        <input type="text" id="combustible" name="combustible" placeholder="Ej: Gasolina, Jet-A, etc.">
-                    </div>
-
-                    <!-- Mezcla Relativa -->
-                    <div class="form-group">
-                        <label for="mezcla-relativa">Mezcla Relativa (λ):</label>
-                        <input type="text" id="mezcla-relativa" name="mezcla-relativa" class="parseado" placeholder="Ej: 1,0" data-tipo="adimensional">
-                    </div>
-
-                    <!-- RPM -->
-                    <div class="form-group">
-                        <label for="rpm">RPM:</label>
-                        <input type="text" id="rpm" name="rpm" class="parseado" placeholder="Ej: 2.500" data-tipo="adimensional">
-                    </div>
-
-                    <!-- k del aire -->
-                    <div class="form-group">
-                        <label for="k-aire">k del Aire (γ):</label>
-                        <input type="text" id="k-aire" name="k-aire" placeholder="1,4" value="1,4">
-                    </div>
-
-                    <!-- Rendimiento Mecánico -->
-                    <div class="form-group">
-                        <label for="rendimiento-mecanico">Rendimiento Mecánico (0 a 1):</label>
-                        <input type="text" id="rendimiento-mecanico" name="rendimiento-mecanico" class="parseado" placeholder="Ej: 0,85" data-tipo="adimensional">
-                    </div>
-                    
-                    <button type="button" id="btn-calcular" class="btn-primary">Calcular</button>
-                    <button type="reset" class="btn-secondary">Limpiar</button>
-                </form>
-            </section>
-
-            <!-- Sección de resultados -->
-            <section class="resultados-section" id="resultados-section" style="display:none;">
-                <h2>Resultados</h2>
-                <div id="resultados-container">
-                    <!-- Los resultados se insertarán aquí dinámicamente -->
+                        <div class="btns">
+                            <button type="reset" class="btn-secondary">Limpiar</button>
+                            <button type="button" id="btn-calcular" class="btn-primary">Calcular</button>
+                        </div>
+                    </form>
                 </div>
-            </section>
 
-            <!-- Área para componentes (gráficas, etc.) -->
-            <section class="componentes-section" id="componentes-section">
-                <!-- Los componentes se cargarán aquí -->
-            </section>
-        </main>
+                <!-- Historial -->
+                <div class="card grow">
+                    <div class="head">Historial</div>
+                    <table>
+                        <thead>
+                            <tr><th>Fecha</th><th>Caso</th><th>Acción</th></tr>
+                        </thead>
+                        <tbody id="historial-body">
+                            <tr><td>--/--</td><td>--</td><td>--</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-        <footer>
-            <p>&copy; 2026 - Calculadora de Motores Pistoneros - UTN Haedo</p>
-        </footer>
+            <!-- Panel Derecho (70%) -->
+            <div class="panel right">
+                <!-- Tabla Estados y Tiempos del Ciclo -->
+                <div class="card shrink">
+                    <div class="head">
+                        Estados y Tiempos del Ciclo
+                        <select id="ciclo-estados">
+                            <option value="otto">Otto</option>
+                            <option value="diesel">Diesel</option>
+                            <option value="sabath">Sabathé</option>
+                        </select>
+                    </div>
+                    <table id="tabla-estados">
+                        <thead>
+                            <tr><th>Estado</th><th>Tiempo</th><th>P</th><th>T</th><th>V</th><th>s</th><th>Q/W</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>1</td><td>-</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+                            <tr><td>-</td><td>Proceso</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+                            <tr><td>2</td><td>-</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+                            <tr><td>-</td><td>Proceso</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+                            <tr><td>3</td><td>-</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+                            <tr><td>-</td><td>Proceso</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+                            <tr><td>4</td><td>-</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+                            <tr><td>-</td><td>Proceso</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Gráficos -->
+                <div class="graphs">
+                    <div class="card graph">
+                        <div class="head">
+                            Gráfico P-V (Clapeyron)
+                            <select id="ciclo-pv">
+                                <option value="otto">Otto</option>
+                                <option value="diesel">Diesel</option>
+                                <option value="sabath">Sabathé</option>
+                            </select>
+                        </div>
+                        <div class="plot" id="plot-pv">[Curva ciclo Otto P vs V]</div>
+                    </div>
+                    <div class="card graph">
+                        <div class="head">
+                            Gráfico T-S
+                            <select id="ciclo-ts">
+                                <option value="otto">Otto</option>
+                                <option value="diesel">Diesel</option>
+                                <option value="sabath">Sabathé</option>
+                            </select>
+                        </div>
+                        <div class="plot" id="plot-ts">[Curva ciclo Otto T vs S]</div>
+                    </div>
+                </div>
+
+                <!-- Resumen del Ciclo -->
+                <div class="card summary shrink">
+                    <div class="head">Resumen del Ciclo</div>
+                    <table id="tabla-resumen">
+                        <thead>
+                            <tr><th>Ciclo</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Q in</th><th>Q out</th><th>W neto</th><th>η Térm</th><th>Cilindrada</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Otto</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+                            <tr><td>Diesel</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+                            <tr><td>Sabathé</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Scripts propios -->

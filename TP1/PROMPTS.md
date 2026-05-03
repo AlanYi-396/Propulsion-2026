@@ -44,6 +44,14 @@
 
 ---
 
+### PROMPT 6
+**Solicitud:**
+> Quiero agregarle un FAVICON a la página que estamos desarrollando, el favicon en cuestión puedes encontrarlo en /assets/FAVICON.jpg. recuerda actualizar el PROMPTS.md con este promp citado textual y un resumen '1 liner' de lo que hiciste según mi petición
+
+**Respuesta:** Favicon agregado al `<head>` del `index.html` con referencia a `./assets/FAVICON.jpg` y actualizado `PROMPTS.md`.
+
+---
+
 ## Notas
 - Formato: Solicitud = cita literal del prompt del usuario | Respuesta = resumen máx. 1 línea
 - Ubicación: `PROMPTS.md` en la raíz de `TP1/`

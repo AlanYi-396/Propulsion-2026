@@ -38,7 +38,7 @@
                         <div class="form-columns">
                             <div class="form-group">
                                 <label for="rpm">RPM:</label>
-                                <input type="text" id="rpm" name="rpm" class="parseado" placeholder="Ej: 2.500" data-tipo="adimensional">
+                                <input type="text" id="rpm" name="rpm" class="kendo-numeric" data-tipo="adimensional">
                             </div>
                             <div class="form-group">
                                 <label for="potencia">Potencia:</label>
@@ -63,15 +63,15 @@
                             </div>
                             <div class="form-group">
                                 <label for="mezcla-relativa">Relación Compresión:</label>
-                                <input type="text" id="mezcla-relativa" name="mezcla-relativa" class="parseado" placeholder="Ej: 8,0" data-tipo="adimensional">
+                                <input type="text" id="mezcla-relativa" name="mezcla-relativa" class="kendo-numeric" data-tipo="adimensional">
                             </div>
                             <div class="form-group">
                                 <label for="k-aire">k del Aire (γ):</label>
-                                <input type="text" id="k-aire" name="k-aire" placeholder="1,4" value="1,4">
+                                <input type="text" id="k-aire" name="k-aire" class="kendo-numeric" value="1.4">
                             </div>
                             <div class="form-group">
                                 <label for="rendimiento-mecanico">Rend. Mecánico:</label>
-                                <input type="text" id="rendimiento-mecanico" name="rendimiento-mecanico" class="parseado" placeholder="Ej: 0,85" data-tipo="adimensional">
+                                <input type="text" id="rendimiento-mecanico" name="rendimiento-mecanico" class="kendo-numeric" data-tipo="adimensional">
                             </div>
                         </div>
                         
@@ -95,12 +95,11 @@
                 <!-- Historial -->
                 <div class="card grow">
                     <div class="head">Historial</div>
-                    <table>
+                    <table id="historial-table">
                         <thead>
-                            <tr><th>Fecha</th><th>Caso</th><th>Acción</th></tr>
+                            <tr><th>Fecha</th><th>Ciclo</th><th>Acción</th></tr>
                         </thead>
                         <tbody id="historial-body">
-                            <tr><td>--/--</td><td>--</td><td>--</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -119,19 +118,6 @@
                         </select>
                     </div>
                     <table id="tabla-estados">
-                        <thead>
-                            <tr><th>Estado</th><th>Tiempo</th><th>P</th><th>T</th><th>V</th><th>s</th><th>Q/W</th></tr>
-                        </thead>
-                        <tbody>
-                            <tr><td>1</td><td>-</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
-                            <tr><td>-</td><td>Proceso</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
-                            <tr><td>2</td><td>-</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
-                            <tr><td>-</td><td>Proceso</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
-                            <tr><td>3</td><td>-</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
-                            <tr><td>-</td><td>Proceso</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
-                            <tr><td>4</td><td>-</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
-                            <tr><td>-</td><td>Proceso</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
-                        </tbody>
                     </table>
                 </div>
 
@@ -165,21 +151,35 @@
                 <div class="card summary shrink">
                     <div class="head">Resumen del Ciclo</div>
                     <table id="tabla-resumen">
-                        <thead>
-                            <tr><th>Ciclo</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Q in</th><th>Q out</th><th>W neto</th><th>η Térm</th><th>Cilindrada</th></tr>
-                        </thead>
-                        <tbody>
-                            <tr><td>Otto</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
-                            <tr><td>Diesel</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
-                            <tr><td>Sabathé</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
-                        </tbody>
                     </table>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Pop-up Modal de Consulta de Historial -->
+    <div id="historial-modal" class="historial-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span id="modal-fecha">dd-mm-yyyy - HH:MM:SS</span> | Ciclo: <span id="modal-ciclo">--</span>
+                </div>
+                <button class="modal-close" id="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <table id="modal-datos-table">
+                    <thead>
+                        <tr><th>Parámetro</th><th>Valor</th><th>Unidad</th></tr>
+                    </thead>
+                    <tbody id="modal-datos-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts propios -->
+    <script src="componentes/ciclos-motores.js"></script>
     <script src="behaviour.js"></script>
 </body>
 </html>

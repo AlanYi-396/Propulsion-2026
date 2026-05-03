@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup Predimensionador</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#fff;color:#000}button,input,select{font:inherit}table{border-collapse:collapse;width:100%}th,td{border:1px solid #000;padding:2px 4px;font-size:10px;text-align:left}#app{height:100vh;padding:10px}.row{display:flex;gap:10px;height:100%}.panel{border:1px solid #000;border-radius:16px;padding:12px;overflow:hidden}.left{width:30%;display:flex;flex-direction:column;gap:10px}.right{width:70%;display:flex;flex-direction:column;gap:10px;height:100%}.card{border:1px solid #000;border-radius:12px;padding:8px}.hero{height:176px;display:flex;align-items:center;justify-content:center;text-align:center;position:relative}.hero:before{content:'';position:absolute;inset:0;background:#000;opacity:.08}.hero>*{position:relative}.title{font-size:22px;font-weight:700}.small{font-size:12px}.tiny{font-size:10px}.inputs{display:flex;flex-direction:column;gap:6px}.inputs input,.inputs select{padding:6px;border:1px solid #000;border-radius:6px}.btns{display:flex;gap:8px}.btns button{flex:1;padding:8px;border:1px solid #000;border-radius:6px;background:#fff}.grow{flex:1;min-height:0;overflow:auto}.shrink{overflow:auto}.graphs{display:flex;gap:10px;flex:1;min-height:0}.graph{flex:1;display:flex;flex-direction:column}.plot{flex:1;border:1px solid #000;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px}.head{font-size:10px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px}.head select{font-size:10px}.radio{font-size:12px}.range{padding:0!important}.summary{overflow:auto}@media (max-width:1100px){.row{flex-direction:column}.left,.right{width:100%}.hero{height:140px}}</style>
+</head>
+<body>
+<div id="app">
+<div class="row">
+<div class="panel left">
+<div class="card hero"><div><div class="title">Predimensionador de Motores</div><div>[Imagen técnica conceptual aquí]</div><div class="small">Lorem ipsum dolor sit amet</div></div></div>
+<div class="card inputs">
+<div class="small"><b>Parámetros de Entrada</b></div>
+<input placeholder="Texto / Nombre caso">
+<input type="number" placeholder="RPM">
+<input type="number" placeholder="Potencia requerida (HP)">
+<select><option>Ciclo Otto</option><option>Diesel</option><option>Sabathé</option><option>Comparativa</option></select>
+<div class="radio">Combustible <label><input type="radio" name="f"> AvGas</label> <label><input type="radio" name="f"> Diesel</label></div>
+<div class="radio">Relación de compresión</div>
+<input class="range" type="range">
+<div class="btns"><button>Limpiar</button><button><b>Calcular</b></button></div>
+</div>
+<div class="card grow">
+<div class="head">Historial</div>
+<table><thead><tr><th>Fecha</th><th>Caso</th><th>Acción</th></tr></thead><tbody>
+<tr><td>00/00</td><td>Lorem 1</td><td>Cargar</td></tr><tr><td>00/00</td><td>Lorem 2</td><td>Cargar</td></tr><tr><td>00/00</td><td>Lorem 3</td><td>Cargar</td></tr><tr><td>00/00</td><td>Lorem 4</td><td>Cargar</td></tr><tr><td>00/00</td><td>Lorem 5</td><td>Cargar</td></tr><tr><td>00/00</td><td>Lorem 6</td><td>Cargar</td></tr><tr><td>00/00</td><td>Lorem 7</td><td>Cargar</td></tr><tr><td>00/00</td><td>Lorem 8</td><td>Cargar</td></tr>
+</tbody></table></div>
+</div>
+<div class="panel right">
+<div class="card shrink">
+<div class="head">Estados y Tiempos del Ciclo <select><option>Otto</option><option>Diesel</option><option>Sabathé</option></select></div>
+<table><thead><tr><th>Estado</th><th>Tiempo</th><th>P</th><th>T</th><th>V</th><th>s</th><th>Q/W</th></tr></thead><tbody>
+<tr><td>1</td><td>-</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+<tr><td>-</td><td>Proceso</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+<tr><td>2</td><td>-</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+<tr><td>-</td><td>Proceso</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+<tr><td>3</td><td>-</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+<tr><td>-</td><td>Proceso</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+<tr><td>4</td><td>-</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+<tr><td>-</td><td>Proceso</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+</tbody></table></div>
+<div class="graphs">
+<div class="card graph"><div class="head">Gráfico P-V (Clapeyron) <select><option>Otto</option><option>Diesel</option><option>Sabathé</option></select></div><div class="plot">[Curva ciclo Otto P vs V]</div></div>
+<div class="card graph"><div class="head">Gráfico T-S <select><option>Otto</option><option>Diesel</option><option>Sabathé</option></select></div><div class="plot">[Curva ciclo Otto T vs S]</div></div>
+</div>
+<div class="card summary shrink">
+<div class="head">Resumen del Ciclo</div>
+<table><thead><tr><th>Ciclo</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Q in</th><th>Q out</th><th>W neto</th><th>Cilindrada</th></tr></thead><tbody>
+<tr><td>Otto</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+<tr><td>Diesel</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+<tr><td>Sabathé</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td><td>--</td></tr>
+</tbody></table>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>

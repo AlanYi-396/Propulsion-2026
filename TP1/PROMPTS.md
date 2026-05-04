@@ -156,6 +156,22 @@
 
 ---
 
+### PROMPT 19
+**Solicitud:**
+> Eje X del gráfico T-S: cambiar 'S' por 'ΔS'. Resaltar celda T3 en tabla Resumen si supera 4.800K usando opciones nativas Kendo. Todas las cabeceras de tabla Resumen con subíndices HTML. Hero: usar 'lycoming-engine.jpg' como imagen, título y subtítulo debajo de la imagen, fondo blanco.
+
+**Respuesta:** `ΔS` en eje X del gráfico T-S; `dataBound` en kendoGrid detecta T3>4800K y aplica `background:#fff3cd/color:#856404`; todas las columnas con `headerTemplate` usando `<sub>`; hero reestructurado con `.hero-img` (background-image cover) y `.hero-text` (blanco, padding, borde superior).
+
+---
+
+### PROMPT 20
+**Solicitud:**
+> Aplicar la paleta de colores del tema Lucario de VSCode a toda la aplicación con buen contraste.
+
+**Respuesta:** `general.css` reescrito completo con paleta Lucario: fondo `#1B2B3A`/`#2B3E50`/`#263340`, bordes `#3D5166`, texto `#F8F8F8`/`#B0C4D8`, acento azul `#5C98CD`, amarillo `#E9C062`, verde `#A5C261`, rojo `#CF6A4C`; overrides de Kendo Grid, NumericTextBox, alertas, modal y tabla-estados; charts actualizados con líneas `#5C98CD`, markers `#E9C062` y ejes `#3D5166`/`#B0C4D8`.
+
+---
+
 ## Notas
 - Formato: Solicitud = cita literal del prompt del usuario | Respuesta = resumen máx. 1 línea
 - Ubicación: `PROMPTS.md` en la raíz de `TP1/`

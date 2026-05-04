@@ -45,18 +45,29 @@ $(document).ready(function() {
             resizable: true,
             scrollable: false,
             columns: [
-                { field: 'ciclo',      title: 'Ciclo',            width: 70, attributes: { style: 'text-align: left'   } },
-                { field: 't1',         title: 'T₁ [K]',           width: 65, attributes: { style: 'text-align: center' } },
-                { field: 't2',         title: 'T₂ [K]',           width: 65, attributes: { style: 'text-align: center' } },
-                { field: 't3',         title: 'T₃ [K]',           width: 65, attributes: { style: 'text-align: center' } },
-                { field: 't4',         title: 'T₄ [K]',           width: 65, attributes: { style: 'text-align: center' } },
-                { field: 'qin',        title: 'Q_in [kCal/kg]',   width: 95, attributes: { style: 'text-align: center' } },
-                { field: 'qout',       title: 'Q_out [kCal/kg]',  width: 95, attributes: { style: 'text-align: center' } },
-                { field: 'wneto',      title: 'W_neto [kJ/kg]',   width: 90, attributes: { style: 'text-align: center' } },
-                { field: 'eterma',     title: 'η Térmica',        width: 75, attributes: { style: 'text-align: center' } },
-                { field: 'cilindrada', title: 'Cilindrada',       width: 70, attributes: { style: 'text-align: center' } }
+                { field: 'ciclo',      title: 'Ciclo',                                                        width: 70, attributes: { style: 'text-align: left'   } },
+                { field: 't1',         title: 'T₁ [K]',                                                       width: 65, attributes: { style: 'text-align: center' } },
+                { field: 't2',         title: 'T₂ [K]',                                                       width: 65, attributes: { style: 'text-align: center' } },
+                { field: 't3',         headerTemplate: 'T<sub>3</sub> [K]',                                   width: 65, attributes: { style: 'text-align: center' } },
+                { field: 't4',         title: 'T₄ [K]',                                                       width: 65, attributes: { style: 'text-align: center' } },
+                { field: 'qin',        headerTemplate: 'Q<sub>in</sub> [kCal/kg]',                            width: 95, attributes: { style: 'text-align: center' } },
+                { field: 'qout',       headerTemplate: 'Q<sub>out</sub> [kCal/kg]',                           width: 95, attributes: { style: 'text-align: center' } },
+                { field: 'wneto',      headerTemplate: 'W<sub>neto</sub> [kJ/kg]',                            width: 90, attributes: { style: 'text-align: center' } },
+                { field: 'eterma',     headerTemplate: 'η<sub>t</sub>',                                       width: 75, attributes: { style: 'text-align: center' } },
+                { field: 'cilindrada', headerTemplate: 'V<sub>d</sub> [L]',                                   width: 70, attributes: { style: 'text-align: center' } }
             ],
-            dataSource: { data: [] }
+            dataSource: { data: [] },
+            dataBound: function() {
+                const data = this.dataSource.data();
+                const $tbody = $(this.tbody);
+                data.forEach(function(item, idx) {
+                    const raw = parseFloat((item.t3 || '').replace(/\./g, '').replace(',', '.'));
+                    if (raw > 4800) {
+                        $tbody.find('tr').eq(idx).find('td').eq(3)
+                            .css({ 'background-color': '#eb4c4c', 'color': '#F8F8F8', 'font-weight': '700' });
+                    }
+                });
+            }
         });
     }
 
@@ -600,13 +611,13 @@ $(document).ready(function() {
     }
 
     // ── GRÁFICOS P-V y T-S ────────────────────────────────────────────────────
-    const CHART_COLOR_LINEA = '#1e3a5f';
-    const CHART_COLOR_DOT   = '#c0392b';
+    const CHART_COLOR_LINEA = '#5C98CD';   // Lucario blue
+    const CHART_COLOR_DOT   = '#E9C062';   // Lucario yellow
     const CHART_N_PUNTOS    = 40;
 
     function inicializarGraficos() {
         crearGraficoBase('#plot-pv', 'v [m³/kg]', 'P [kPa]', '{0:n3}', '{0:n0}');
-        crearGraficoBase('#plot-ts', 'S [kCal/(kg·K)]', 'T [K]', '{0:n4}', '{0:n0}');
+        crearGraficoBase('#plot-ts', 'ΔS [kCal/(kg·K)]', 'T [K]', '{0:n4}', '{0:n0}');
     }
 
     function crearGraficoBase(selector, xLabel, yLabel, xFmt, yFmt) {
@@ -618,14 +629,16 @@ $(document).ready(function() {
             legend:  { visible: false },
             series:  [],
             xAxis: {
-                title: { text: xLabel, font: '11px Segoe UI', margin: { top: 2 } },
-                labels: { font: '10px Segoe UI', format: xFmt, rotation: -30 },
-                majorGridLines: { color: '#e8e8e8' }
+                title: { text: xLabel, font: '11px Segoe UI', color: '#B0C4D8', margin: { top: 2 } },
+                labels: { font: '10px Segoe UI', format: xFmt, rotation: -30, color: '#B0C4D8' },
+                majorGridLines: { color: '#3D5166' },
+                color: '#3D5166'
             },
             yAxis: {
-                title: { text: yLabel, font: '11px Segoe UI', margin: { right: 2 } },
-                labels: { font: '10px Segoe UI', format: yFmt },
-                majorGridLines: { color: '#e8e8e8' }
+                title: { text: yLabel, font: '11px Segoe UI', color: '#B0C4D8', margin: { right: 2 } },
+                labels: { font: '10px Segoe UI', format: yFmt, color: '#B0C4D8' },
+                majorGridLines: { color: '#3D5166' },
+                color: '#3D5166'
             },
             tooltip: { visible: false },
             chartArea: { background: 'transparent', border: { width: 0 }, margin: 4 },

@@ -103,13 +103,15 @@
                 <!-- Historial -->
                 <div class="card grow">
                     <div class="head">Historial</div>
-                    <table id="historial-table">
-                        <thead>
-                            <tr><th>Fecha</th><th>Ciclo</th><th>Acción</th></tr>
-                        </thead>
-                        <tbody id="historial-body">
-                        </tbody>
-                    </table>
+                    <div id="historial-scroll">
+                        <table id="historial-table">
+                            <thead>
+                                <tr><th>Fecha</th><th>Ciclo</th><th>Acción</th></tr>
+                            </thead>
+                            <tbody id="historial-body">
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -140,7 +142,7 @@
                                 <option value="sabath">Sabathé</option>
                             </select>
                         </div>
-                        <div class="plot" id="plot-pv">[Curva ciclo Otto P vs V]</div>
+                        <div class="plot" id="plot-pv"></div>
                     </div>
                     <div class="card graph">
                         <div class="head">
@@ -151,7 +153,7 @@
                                 <option value="sabath">Sabathé</option>
                             </select>
                         </div>
-                        <div class="plot" id="plot-ts">[Curva ciclo Otto T vs S]</div>
+                        <div class="plot" id="plot-ts"></div>
                     </div>
                 </div>
 

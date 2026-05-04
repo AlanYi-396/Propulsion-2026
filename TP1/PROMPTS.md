@@ -140,6 +140,22 @@
 
 ---
 
+### PROMPT 17
+**Solicitud:**
+> Alinea al centro todo el contenido de la tabla historial. Quita scrollbar e impresión CSV de tabla RESUMEN. Estiliza los dropdownlist de los 3 contenedores derechos. Añade columna ΔS a la tabla de Estados y Tiempos. Modifica las funciones de cálculo para determinar variación de entropía por cada TIEMPO (no por estado). Para potencia y RPM, calcula el volumen de cilindrada necesario para cumplir la solicitación. Considera 2 vueltas/ciclo (motor 4T). Hacer tabla resumen de modificaciones con líneas de código.
+
+**Respuesta:** Historial centrado en CSS; grid RESUMEN sin toolbar CSV ni scrollable; dropdowns derechos estilizados con hover/focus; columna `ΔS [kCal/(kg·K)]` agregada (colspan 11→12) con fórmulas por tipo de proceso (isocórico=Cv·ln, isobárico=Cp·ln, adiabático=0); cilindrada calculada como `V_d[L] = P_W·120/(η·w_neto·ρ₁·RPM)` en los 3 ciclos y mostrada en tabla RESUMEN.
+
+---
+
+### PROMPT 18
+**Solicitud:**
+> Corrije trabajo Diesel en combustión (solo debe aparecer en expansión). Quita scrollbar del contenedor historial y agrega scroll nativo Kendo con cabecera fija. Estiliza tabla de Estados y Tiempos para que se parezca a Kendo (hover principal). Los avisos de alerta deben aparecer en esquina superior izquierda en posición fija sin alterar el maquetado. Implementar gráficos P-V y T-S con Kendo DataViz: limpio, sin sobrecarga; hover en vértice muestra número de estado.
+
+**Respuesta:** Diesel combustión `w:null`; historial con `#historial-scroll overflow-y:auto` + `thead sticky`; tabla estados con hover `#e8f3fc`; alertas `position:fixed top:10px left:10px z-index:9000`; gráficos Kendo `scatterLine` (curvas adiabáticas, isocóricas, isobáricas) con markers de estado y tooltip `Estado N`; constantes `k_aire/Cv_J/Cp_J/JK` exportadas en resultado.
+
+---
+
 ## Notas
 - Formato: Solicitud = cita literal del prompt del usuario | Respuesta = resumen máx. 1 línea
 - Ubicación: `PROMPTS.md` en la raíz de `TP1/`

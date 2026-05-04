@@ -22,6 +22,7 @@ $(document).ready(function() {
         inicializarKendoControls();
         inicializarKendoGrids();
         inicializarTablaEstados('otto');
+        inicializarGraficos();
         inicializarEventos();
         cargarHistorial();
         actualizarTablaHistorial();
@@ -42,8 +43,7 @@ $(document).ready(function() {
             sortable: false,
             selectable: false,
             resizable: true,
-            toolbar: ['csv'],
-            csv: { fileName: 'Resumen_Ciclo.csv', allPages: true },
+            scrollable: false,
             columns: [
                 { field: 'ciclo',      title: 'Ciclo',            width: 70, attributes: { style: 'text-align: left'   } },
                 { field: 't1',         title: 'T₁ [K]',           width: 65, attributes: { style: 'text-align: center' } },
@@ -83,7 +83,7 @@ $(document).ready(function() {
                 <td>${fmt(e.T, 2)}</td>
                 <td>${fmt(e.u, 3)}</td>
                 <td>${fmt(e.h, 3)}</td>
-                <td>-</td><td>-</td>
+                <td>-</td><td>-</td><td>-</td>
             </tr>`;
 
             if (i < resultado.procesos.length) {
@@ -93,18 +93,19 @@ $(document).ready(function() {
                     <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
                     <td>${p.q != null ? fmt(p.q, 3) : '-'}</td>
                     <td>${p.w != null ? fmt(p.w, 2) : '-'}</td>
+                    <td>${fmt(p.ds, 4)}</td>
                 </tr>`;
             }
         });
 
         return `
             <thead>
-                <tr><th colspan="11" class="tabla-ciclo-titulo">${titulo}</th></tr>
+                <tr><th colspan="12" class="tabla-ciclo-titulo">${titulo}</th></tr>
                 <tr>
                     <th>ESTADO</th><th>ETAPA</th><th>Tiempo</th>
                     <th>P [Pa]</th><th>ρ [kg/m³]</th><th>v [m³/kg]</th>
                     <th>T [K]</th><th>u [kCal/kg]</th><th>h [kCal/kg]</th>
-                    <th>q [kCal/kg]</th><th>w [kJ/kg]</th>
+                    <th>q [kCal/kg]</th><th>w [kJ/kg]</th><th>ΔS [kCal/(kg·K)]</th>
                 </tr>
             </thead>
             <tbody>${filas}</tbody>`;
@@ -136,25 +137,25 @@ $(document).ready(function() {
         for (let i = 1; i <= nEstados; i++) {
             filas += `<tr class="fila-estado">
                 <td>${i}</td><td>-</td><td>-</td>
-                <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+                <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
             </tr>`;
             if (i <= procesos.length) {
                 const p = procesos[i - 1];
                 filas += `<tr class="fila-proceso">
                     <td>-</td><td>${p.etapa}</td><td>${p.tiempo}</td>
-                    <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+                    <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
                 </tr>`;
             }
         }
 
         return `
             <thead>
-                <tr><th colspan="11" class="tabla-ciclo-titulo">${titulos[ciclo] || titulos.otto}</th></tr>
+                <tr><th colspan="12" class="tabla-ciclo-titulo">${titulos[ciclo] || titulos.otto}</th></tr>
                 <tr>
                     <th>ESTADO</th><th>ETAPA</th><th>Tiempo</th>
                     <th>P [Pa]</th><th>ρ [kg/m³]</th><th>v [m³/kg]</th>
                     <th>T [K]</th><th>u [kCal/kg]</th><th>h [kCal/kg]</th>
-                    <th>q [kCal/kg]</th><th>w [kJ/kg]</th>
+                    <th>q [kCal/kg]</th><th>w [kJ/kg]</th><th>ΔS [kCal/(kg·K)]</th>
                 </tr>
             </thead>
             <tbody>${filas}</tbody>`;
@@ -194,7 +195,7 @@ $(document).ready(function() {
             qout:       fmt(r.rendimientos.q_out, 3),
             wneto:      fmt(r.rendimientos.w_neto, 2),
             eterma:     (r.rendimientos.eta_th * 100).toFixed(2) + '%',
-            cilindrada: '--'
+            cilindrada: fmt(r.rendimientos.cilindrada_L, 2) + ' L'
         }];
         const $grid = $('#tabla-resumen').data('kendoGrid');
         if ($grid) $grid.dataSource.data(datos);
@@ -213,7 +214,7 @@ $(document).ready(function() {
                 qout:       fmt(r.rendimientos.q_out, 3),
                 wneto:      fmt(r.rendimientos.w_neto, 2),
                 eterma:     (r.rendimientos.eta_th * 100).toFixed(2) + '%',
-                cilindrada: '--'
+                cilindrada: fmt(r.rendimientos.cilindrada_L, 2) + ' L'
             };
         });
         const $grid = $('#tabla-resumen').data('kendoGrid');
@@ -233,6 +234,23 @@ $(document).ready(function() {
 
         $(document).on('change', '#ciclo-estados', function() {
             actualizarTablaEstados($(this).val());
+        });
+
+        $(document).on('change', '#ciclo-pv', function() {
+            const c = $(this).val();
+            if (resultadosActuales[c]) renderizarGraficoPV(resultadosActuales[c]);
+        });
+
+        $(document).on('change', '#ciclo-ts', function() {
+            const c = $(this).val();
+            if (resultadosActuales[c]) renderizarGraficoTS(resultadosActuales[c]);
+        });
+
+        $(window).on('resize', function() {
+            const cPV = $('#plot-pv').data('kendoChart');
+            const cTS = $('#plot-ts').data('kendoChart');
+            if (cPV) cPV.resize();
+            if (cTS) cTS.resize();
         });
 
         $(document).on('click', '#modal-close-btn', function() {
@@ -303,6 +321,12 @@ $(document).ready(function() {
                     $('#ciclo-' + g).val(ciclo).prop('disabled', true);
                 });
             }
+
+            // ── Actualizar gráficos
+            const cicloPV = $('#ciclo-pv').val();
+            const cicloTS = $('#ciclo-ts').val();
+            if (resultadosActuales[cicloPV]) renderizarGraficoPV(resultadosActuales[cicloPV]);
+            if (resultadosActuales[cicloTS]) renderizarGraficoTS(resultadosActuales[cicloTS]);
 
             // ── Historial
             const idHistorial = generarIDHistorial();
@@ -423,6 +447,11 @@ $(document).ready(function() {
         inicializarTablaEstados('otto');
         const $grid = $('#tabla-resumen').data('kendoGrid');
         if ($grid) $grid.dataSource.data([]);
+        // Limpiar gráficos
+        ['#plot-pv', '#plot-ts'].forEach(function(sel) {
+            const c = $(sel).data('kendoChart');
+            if (c) { c.options.series = []; c.refresh(); }
+        });
     }
 
     // ── HISTORIAL ─────────────────────────────────────────────────────────────
@@ -570,11 +599,212 @@ $(document).ready(function() {
         mostrarAlerta('Cálculo eliminado del historial.', 'info');
     }
 
+    // ── GRÁFICOS P-V y T-S ────────────────────────────────────────────────────
+    const CHART_COLOR_LINEA = '#1e3a5f';
+    const CHART_COLOR_DOT   = '#c0392b';
+    const CHART_N_PUNTOS    = 40;
+
+    function inicializarGraficos() {
+        crearGraficoBase('#plot-pv', 'v [m³/kg]', 'P [kPa]', '{0:n3}', '{0:n0}');
+        crearGraficoBase('#plot-ts', 'S [kCal/(kg·K)]', 'T [K]', '{0:n4}', '{0:n0}');
+    }
+
+    function crearGraficoBase(selector, xLabel, yLabel, xFmt, yFmt) {
+        const $el = $(selector);
+        const inst = $el.data('kendoChart');
+        if (inst) inst.destroy();
+        $el.empty();
+        $el.kendoChart({
+            legend:  { visible: false },
+            series:  [],
+            xAxis: {
+                title: { text: xLabel, font: '11px Segoe UI', margin: { top: 2 } },
+                labels: { font: '10px Segoe UI', format: xFmt, rotation: -30 },
+                majorGridLines: { color: '#e8e8e8' }
+            },
+            yAxis: {
+                title: { text: yLabel, font: '11px Segoe UI', margin: { right: 2 } },
+                labels: { font: '10px Segoe UI', format: yFmt },
+                majorGridLines: { color: '#e8e8e8' }
+            },
+            tooltip: { visible: false },
+            chartArea: { background: 'transparent', border: { width: 0 }, margin: 4 },
+            plotArea:  { border: { width: 0 }, margin: { top: 10, right: 10, bottom: 5, left: 5 } }
+        });
+    }
+
+    function renderizarGraficoPV(resultado) {
+        const chart = $('#plot-pv').data('kendoChart');
+        if (!chart || !resultado) return;
+        chart.options.series = generarSeriesPV(resultado);
+        chart.refresh();
+    }
+
+    function renderizarGraficoTS(resultado) {
+        const chart = $('#plot-ts').data('kendoChart');
+        if (!chart || !resultado) return;
+        chart.options.series = generarSeriesTS(resultado);
+        chart.refresh();
+    }
+
+    function _construirSeriesChart(procPts, estadosPuntos) {
+        const series = [];
+        procPts.forEach(function(pts) {
+            series.push({
+                type: 'scatterLine',
+                data: pts,
+                color: CHART_COLOR_LINEA,
+                width: 2,
+                markers: { visible: false },
+                tooltip: { visible: false },
+                visibleInLegend: false
+            });
+        });
+        estadosPuntos.forEach(function(ep) {
+            series.push({
+                type: 'scatter',
+                name: ep.label,
+                data: [{ x: ep.x, y: ep.y }],
+                color: CHART_COLOR_DOT,
+                markers: {
+                    type: 'circle', size: 9,
+                    background: CHART_COLOR_DOT,
+                    border: { color: '#fff', width: 2 }
+                },
+                tooltip: {
+                    visible: true,
+                    template: 'Estado #= series.name #'
+                },
+                visibleInLegend: false
+            });
+        });
+        return series;
+    }
+
+    function generarSeriesPV(resultado) {
+        const est  = resultado.estados;
+        const k    = resultado.k_aire;
+        const tipo = resultado.tipo_ciclo.toLowerCase();
+        const n    = CHART_N_PUNTOS;
+
+        function adiabatica(eA, eB) {
+            const C = eA.P * Math.pow(eA.v, k);
+            const pts = [];
+            for (let i = 0; i <= n; i++) {
+                const v = eA.v + (eB.v - eA.v) * i / n;
+                pts.push({ x: v, y: C / Math.pow(v, k) / 1000 });
+            }
+            return pts;
+        }
+        function isochorica(eA, eB) {
+            return [{ x: eA.v, y: eA.P / 1000 }, { x: eB.v, y: eB.P / 1000 }];
+        }
+        function isobarica(eA, eB) {
+            return [{ x: eA.v, y: eA.P / 1000 }, { x: eB.v, y: eB.P / 1000 }];
+        }
+
+        const procPts = [];
+        if (tipo === 'otto') {
+            procPts.push(adiabatica(est[0], est[1]));
+            procPts.push(isochorica(est[1], est[2]));
+            procPts.push(adiabatica(est[2], est[3]));
+            procPts.push(isochorica(est[3], est[0]));
+        } else if (tipo === 'diesel') {
+            procPts.push(adiabatica(est[0], est[1]));
+            procPts.push(isobarica(est[1], est[2]));
+            procPts.push(adiabatica(est[2], est[3]));
+            procPts.push(isochorica(est[3], est[0]));
+        } else {
+            procPts.push(adiabatica(est[0], est[1]));
+            procPts.push(isochorica(est[1], est[2]));
+            procPts.push(isobarica(est[2], est[3]));
+            procPts.push(adiabatica(est[3], est[4]));
+            procPts.push(isochorica(est[4], est[0]));
+        }
+
+        const estadosPuntos = est.map(function(e) {
+            return { x: e.v, y: e.P / 1000, label: String(e.num) };
+        });
+
+        return _construirSeriesChart(procPts, estadosPuntos);
+    }
+
+    function generarSeriesTS(resultado) {
+        const est  = resultado.estados;
+        const Cv   = resultado.Cv_J;
+        const Cp   = resultado.Cp_J;
+        const JK   = resultado.JK;
+        const tipo = resultado.tipo_ciclo.toLowerCase();
+        const n    = CHART_N_PUNTOS;
+
+        function adiabatTS(S_val, TA, TB) {
+            return [{ x: S_val, y: TA }, { x: S_val, y: TB }];
+        }
+        function isocTS(S_ini, TA, TB) {
+            const S_fin = S_ini + Cv * Math.log(TB / TA) / JK;
+            const pts = [];
+            for (let i = 0; i <= n; i++) {
+                const S = S_ini + (S_fin - S_ini) * i / n;
+                pts.push({ x: S, y: TA * Math.exp((S - S_ini) * JK / Cv) });
+            }
+            return pts;
+        }
+        function isobTS(S_ini, TA, TB) {
+            const S_fin = S_ini + Cp * Math.log(TB / TA) / JK;
+            const pts = [];
+            for (let i = 0; i <= n; i++) {
+                const S = S_ini + (S_fin - S_ini) * i / n;
+                pts.push({ x: S, y: TA * Math.exp((S - S_ini) * JK / Cp) });
+            }
+            return pts;
+        }
+
+        const Sv = [];
+        const procPts = [];
+
+        if (tipo === 'otto') {
+            Sv[0] = 0;
+            Sv[1] = Sv[0];
+            Sv[2] = Sv[1] + Cv * Math.log(est[2].T / est[1].T) / JK;
+            Sv[3] = Sv[2];
+            procPts.push(adiabatTS(Sv[0], est[0].T, est[1].T));
+            procPts.push(isocTS(Sv[1], est[1].T, est[2].T));
+            procPts.push(adiabatTS(Sv[2], est[2].T, est[3].T));
+            procPts.push(isocTS(Sv[3], est[3].T, est[0].T));
+        } else if (tipo === 'diesel') {
+            Sv[0] = 0;
+            Sv[1] = Sv[0];
+            Sv[2] = Sv[1] + Cp * Math.log(est[2].T / est[1].T) / JK;
+            Sv[3] = Sv[2];
+            procPts.push(adiabatTS(Sv[0], est[0].T, est[1].T));
+            procPts.push(isobTS(Sv[1], est[1].T, est[2].T));
+            procPts.push(adiabatTS(Sv[2], est[2].T, est[3].T));
+            procPts.push(isocTS(Sv[3], est[3].T, est[0].T));
+        } else {
+            Sv[0] = 0;
+            Sv[1] = Sv[0];
+            Sv[2] = Sv[1] + Cv * Math.log(est[2].T / est[1].T) / JK;
+            Sv[3] = Sv[2] + Cp * Math.log(est[3].T / est[2].T) / JK;
+            Sv[4] = Sv[3];
+            procPts.push(adiabatTS(Sv[0], est[0].T, est[1].T));
+            procPts.push(isocTS(Sv[1], est[1].T, est[2].T));
+            procPts.push(isobTS(Sv[2], est[2].T, est[3].T));
+            procPts.push(adiabatTS(Sv[3], est[3].T, est[4].T));
+            procPts.push(isocTS(Sv[4], est[4].T, est[0].T));
+        }
+
+        const estadosPuntos = est.map(function(e, i) {
+            return { x: Sv[i], y: e.T, label: String(e.num) };
+        });
+
+        return _construirSeriesChart(procPts, estadosPuntos);
+    }
+
     // ── ALERTAS ───────────────────────────────────────────────────────────────
     function mostrarAlerta(mensaje, tipo) {
         tipo = tipo || 'warning';
         const $alerta = $(`<div class="alert alert-${tipo}">${mensaje}</div>`);
-        $('#parametros-form').prepend($alerta);
+        $('body').append($alerta);
         setTimeout(function() {
             $alerta.fadeOut(300, function() { $(this).remove(); });
         }, 4000);

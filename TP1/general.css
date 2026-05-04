@@ -27,7 +27,7 @@ table {
 th, td {
     border: 1px solid #000;
     padding: 2px 4px;
-    font-size: 10px;
+    font-size: 12px;
     text-align: left;
 }
 
@@ -93,16 +93,16 @@ th, td {
 }
 
 .title {
-    font-size: 22px;
+    font-size: 24px;
     font-weight: 700;
 }
 
 .small {
-    font-size: 12px;
+    font-size: 14px;
 }
 
 .tiny {
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .inputs {
@@ -125,9 +125,9 @@ th, td {
 .inputs input,
 .inputs select {
     padding: 3px;
-    border: 1px solid #000;
+    border: 1px solid #c5c5c5;
     border-radius: 6px;
-    font-size: 11px;
+    font-size: 13px;
 }
 
 .radio-group {
@@ -140,22 +140,25 @@ th, td {
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 11px;
+    font-size: 13px;
 }
 
 .btns {
     display: flex;
     gap: 6px;
+    justify-content: center;
 }
 
 .btns button {
-    flex: 1;
-    padding: 4px 6px;
+    padding: 4px 20px;
     border: 1px solid #000;
     border-radius: 6px;
     background: #fff;
     cursor: pointer;
-    font-size: 11px;
+    font-size: 13px;
+    text-transform: uppercase;
+    min-width: 100px;
+    max-width: 160px;
 }
 
 .btns button:hover {
@@ -165,7 +168,21 @@ th, td {
 .grow {
     flex: 1;
     min-height: 120px;
-    overflow: auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+#historial-scroll {
+    flex: 1;
+    overflow-y: auto;
+}
+
+#historial-table thead th {
+    position: sticky;
+    top: 0;
+    background-color: #f5f5f5;
+    z-index: 1;
 }
 
 .shrink {
@@ -190,15 +207,12 @@ th, td {
     flex: 1;
     border: 1px solid #000;
     border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
+    overflow: hidden;
     min-height: 0;
 }
 
 .head {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
     margin-bottom: 4px;
     display: flex;
@@ -207,11 +221,11 @@ th, td {
 }
 
 .head select {
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .radio {
-    font-size: 12px;
+    font-size: 14px;
 }
 
 .range {
@@ -231,14 +245,14 @@ th, td {
 .form-group label {
     font-weight: 600;
     color: #333;
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .form-group input {
     padding: 3px;
-    border: 1px solid #000;
+    border: 1px solid #c5c5c5;
     border-radius: 5px;
-    font-size: 11px;
+    font-size: 13px;
     width: 100%;
 }
 
@@ -250,14 +264,14 @@ th, td {
 .campo-con-unidad input {
     flex: 1;
     padding: 3px;
-    border: 1px solid #000;
+    border: 1px solid #c5c5c5;
     border-radius: 6px;
-    font-size: 11px;
+    font-size: 13px;
 }
 
 .dropdown-unidad {
     padding: 6px;
-    border: 1px solid #000;
+    border: 1px solid #c5c5c5;
     border-radius: 6px;
     font-size: inherit;
     background-color: white;
@@ -270,13 +284,19 @@ th, td {
     border-color: #f00 !important;
 }
 
-/* Alertas */
+/* Alertas — posición fija, esquina superior izquierda, sin alterar el layout */
 .alert {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 9000;
+    min-width: 220px;
+    max-width: 340px;
     padding: 8px 12px;
     border-radius: 6px;
-    margin-bottom: 8px;
-    font-size: 12px;
+    font-size: 14px;
     border-left: 4px solid;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
 .alert-warning {
@@ -307,14 +327,14 @@ th, td {
 #historial-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 10px;
+    font-size: 12px;
 }
 
 #historial-table th,
 #historial-table td {
     border: 1px solid #ccc;
     padding: 6px;
-    text-align: left;
+    text-align: center;
 }
 
 #historial-table th {
@@ -325,6 +345,7 @@ th, td {
 .botones-accion {
     display: flex;
     gap: 4px;
+    justify-content: center;
 }
 
 .historial-btn {
@@ -333,7 +354,7 @@ th, td {
     border: 1px solid #ccc;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 14px;
     min-width: 28px;
     min-height: 28px;
     display: flex;
@@ -383,7 +404,7 @@ th, td {
 }
 
 .modal-title {
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 600;
     color: #333;
 }
@@ -416,7 +437,7 @@ th, td {
 #modal-datos-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 11px;
+    font-size: 13px;
 }
 
 #modal-datos-table th,
@@ -436,7 +457,7 @@ th, td {
     background-color: #d8d8d8;
     font-weight: 700;
     text-align: center;
-    font-size: 11px;
+    font-size: 13px;
 }
 
 #tabla-estados th {
@@ -456,18 +477,61 @@ th, td {
     font-style: italic;
 }
 
+/* Kendo-like hover para tabla de estados */
+#tabla-estados {
+    border-collapse: collapse;
+}
+#tabla-estados td,
+#tabla-estados th {
+    border-color: #e0e0e0;
+}
+#tabla-estados tbody tr:hover td {
+    background-color: #e8f3fc !important;
+    cursor: default;
+    transition: background-color 0.1s ease;
+}
+
 /* Kendo NumericTextBox personalizacion */
 .k-numeric-wrap {
-    font-size: 11px;
+    font-size: 13px;
 }
 
 .k-numeric-wrap .k-input {
     padding: 3px;
-    font-size: 11px;
+    font-size: 13px;
 }
 
 .k-numeric-wrap .k-spinner-button {
     width: 16px;
+}
+
+/* Dropdowns del panel derecho — estilo propio */
+#ciclo-estados,
+#ciclo-pv,
+#ciclo-ts {
+    border: 1px solid #aaa;
+    border-radius: 6px;
+    background-color: #f5f5f5;
+    padding: 3px 8px;
+    cursor: pointer;
+    color: #333;
+    font-weight: normal;
+    transition: border-color 0.2s, background-color 0.2s;
+    outline: none;
+}
+
+#ciclo-estados:hover,
+#ciclo-pv:hover,
+#ciclo-ts:hover {
+    border-color: #666;
+    background-color: #e8e8e8;
+}
+
+#ciclo-estados:focus,
+#ciclo-pv:focus,
+#ciclo-ts:focus {
+    border-color: #444;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
 }
 
 /* Responsive */

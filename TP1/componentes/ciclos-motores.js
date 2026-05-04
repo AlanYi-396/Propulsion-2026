@@ -153,6 +153,19 @@ const CiclosMotores = {
         const eta_th = 1 - 1 / Math.pow(r, k - 1);
         const w_neto = (w12 + w34) / 1000; // kJ/kg
 
+        // ── Variación de entropía por proceso [kCal/(kg·K)]
+        const ds12 = 0;                                 // adiabático
+        const ds23 = Cv * Math.log(T3 / T2) / JK;     // isocórico (> 0)
+        const ds34 = 0;                                 // adiabático
+        const ds41 = Cv * Math.log(T1 / T4) / JK;     // isocórico (< 0, escape)
+
+        // ── Cilindrada necesaria — motor 4T: 2 rev/ciclo → factor 120
+        // V_d [L] = P_W [W] * 120 / (η_mec * w_neto [kJ/kg] * ρ₁ [kg/m³] * RPM)
+        const P_W   = parametros.potencia.unidad === 'hp'
+            ? parametros.potencia.valor * 745.7
+            : parametros.potencia.valor * 1000;
+        const V_d_L = (P_W * 120) / (parametros.rendimientoMecanico * w_neto * rho1 * parametros.rpm);
+
         return {
             tipo_ciclo: 'Otto',
             estados: [
@@ -162,18 +175,20 @@ const CiclosMotores = {
                 { num:4, P:P4, rho:rho4, v:v4, T:T4, u:Cv*T4/JK, h:Cp*T4/JK }
             ],
             procesos: [
-                { etapa:'(1-2)', tiempo:'Compresión', q:null,       w:w12/1000 },
-                { etapa:'(2-3)', tiempo:'Combustión', q:q23/JK,     w:null     },
-                { etapa:'(3-4)', tiempo:'Expansión',  q:null,       w:w34/1000 },
-                { etapa:'(4-1)', tiempo:'Escape',     q:q41/JK,     w:null     }
+                { etapa:'(1-2)', tiempo:'Compresión', q:null,   w:w12/1000, ds:ds12 },
+                { etapa:'(2-3)', tiempo:'Combustión', q:q23/JK, w:null,     ds:ds23 },
+                { etapa:'(3-4)', tiempo:'Expansión',  q:null,   w:w34/1000, ds:ds34 },
+                { etapa:'(4-1)', tiempo:'Escape',     q:q41/JK, w:null,     ds:ds41 }
             ],
             rendimientos: {
                 eta_th,
                 eta_mecanico: parametros.rendimientoMecanico,
                 w_neto,
                 q_in:  q23 / JK,
-                q_out: q41 / JK
-            }
+                q_out: q41 / JK,
+                cilindrada_L: V_d_L
+            },
+            k_aire: k, Cv_J: Cv, Cp_J: Cp, R: R, JK: JK
         };
     },
 
@@ -228,6 +243,18 @@ const CiclosMotores = {
         const eta_th = 1 - (1 / Math.pow(r, k-1)) * (Math.pow(rc,k) - 1) / (k * (rc - 1));
         const w_neto = (w12 + w23 + w34) / 1000;
 
+        // ── Variación de entropía por proceso [kCal/(kg·K)]
+        const ds12 = 0;                                 // adiabático
+        const ds23 = Cp * Math.log(T3 / T2) / JK;     // isobárico (> 0)
+        const ds34 = 0;                                 // adiabático
+        const ds41 = Cv * Math.log(T1 / T4) / JK;     // isocórico (< 0, escape)
+
+        // ── Cilindrada necesaria — motor 4T: 2 rev/ciclo → factor 120
+        const P_W   = parametros.potencia.unidad === 'hp'
+            ? parametros.potencia.valor * 745.7
+            : parametros.potencia.valor * 1000;
+        const V_d_L = (P_W * 120) / (parametros.rendimientoMecanico * w_neto * rho1 * parametros.rpm);
+
         return {
             tipo_ciclo: 'Diesel',
             estados: [
@@ -237,18 +264,20 @@ const CiclosMotores = {
                 { num:4, P:P4, rho:rho4, v:v4, T:T4, u:Cv*T4/JK, h:Cp*T4/JK }
             ],
             procesos: [
-                { etapa:'(1-2)', tiempo:'Compresión', q:null,       w:w12/1000 },
-                { etapa:'(2-3)', tiempo:'Combustión', q:q23/JK,     w:w23/1000 },
-                { etapa:'(3-4)', tiempo:'Expansión',  q:null,       w:w34/1000 },
-                { etapa:'(4-1)', tiempo:'Escape',     q:q41/JK,     w:null     }
+                { etapa:'(1-2)', tiempo:'Compresión', q:null,   w:w12/1000, ds:ds12 },
+                { etapa:'(2-3)', tiempo:'Combustión', q:q23/JK, w:null,     ds:ds23 },
+                { etapa:'(3-4)', tiempo:'Expansión',  q:null,   w:w34/1000, ds:ds34 },
+                { etapa:'(4-1)', tiempo:'Escape',     q:q41/JK, w:null,     ds:ds41 }
             ],
             rendimientos: {
                 eta_th,
                 eta_mecanico: parametros.rendimientoMecanico,
                 w_neto,
                 q_in:  q23 / JK,
-                q_out: q41 / JK
-            }
+                q_out: q41 / JK,
+                cilindrada_L: V_d_L
+            },
+            k_aire: k, Cv_J: Cv, Cp_J: Cp, R: R, JK: JK
         };
     },
 
@@ -313,6 +342,19 @@ const CiclosMotores = {
         const w_neto = (w12 + w34 + w45) / 1000;
         const eta_th  = w_neto / ((q_vc + q_pc) / 1000);
 
+        // ── Variación de entropía por proceso [kCal/(kg·K)]
+        const ds12 = 0;                                 // adiabático
+        const ds23 = Cv * Math.log(T3 / T2) / JK;     // isocórico (> 0)
+        const ds34 = Cp * Math.log(T4 / T3) / JK;     // isobárico (> 0)
+        const ds45 = 0;                                 // adiabático
+        const ds51 = Cv * Math.log(T1 / T5) / JK;     // isocórico (< 0, escape)
+
+        // ── Cilindrada necesaria — motor 4T: 2 rev/ciclo → factor 120
+        const P_W   = parametros.potencia.unidad === 'hp'
+            ? parametros.potencia.valor * 745.7
+            : parametros.potencia.valor * 1000;
+        const V_d_L = (P_W * 120) / (parametros.rendimientoMecanico * w_neto * rho1 * parametros.rpm);
+
         return {
             tipo_ciclo: 'Sabathé',
             estados: [
@@ -323,19 +365,21 @@ const CiclosMotores = {
                 { num:5, P:P5, rho:rho5, v:v5, T:T5, u:Cv*T5/JK, h:Cp*T5/JK }
             ],
             procesos: [
-                { etapa:'(1-2)', tiempo:'Compresión',    q:null,       w:w12/1000 },
-                { etapa:'(2-3)', tiempo:'Combustión VC', q:q23/JK,     w:null     },
-                { etapa:'(3-4)', tiempo:'Combustión PC', q:q34/JK,     w:w34/1000 },
-                { etapa:'(4-5)', tiempo:'Expansión',     q:null,       w:w45/1000 },
-                { etapa:'(5-1)', tiempo:'Escape',        q:q51/JK,     w:null     }
+                { etapa:'(1-2)', tiempo:'Compresión',    q:null,   w:w12/1000, ds:ds12 },
+                { etapa:'(2-3)', tiempo:'Combustión VC', q:q23/JK, w:null,     ds:ds23 },
+                { etapa:'(3-4)', tiempo:'Combustión PC', q:q34/JK, w:w34/1000, ds:ds34 },
+                { etapa:'(4-5)', tiempo:'Expansión',     q:null,   w:w45/1000, ds:ds45 },
+                { etapa:'(5-1)', tiempo:'Escape',        q:q51/JK, w:null,     ds:ds51 }
             ],
             rendimientos: {
                 eta_th,
                 eta_mecanico: parametros.rendimientoMecanico,
                 w_neto,
                 q_in:  (q_vc + q_pc) / JK,
-                q_out: q51 / JK
-            }
+                q_out: q51 / JK,
+                cilindrada_L: V_d_L
+            },
+            k_aire: k, Cv_J: Cv, Cp_J: Cp, R: R, JK: JK
         };
     }
 };

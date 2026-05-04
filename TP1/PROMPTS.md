@@ -100,6 +100,46 @@
 
 ---
 
+### PROMPT 13 (parte A)
+**Solicitud:**
+> Ok, te paso una imagen donde podrás ver un maquetado que hice para la tabla de "Estados y Tiempos del Ciclo" (ver imagen adjunta), quiero que modifques la tabla en cuestión para tener esa estructura. Y que al "CALCULAR" se ejecuten los cálculos establecidos en el componente "ciclo-motores.js". Como puedes ver se trata de una aplicación que servirá para predimensionar motores alternativos pistoneros de uso aeronáutico. Tómate el tiempo que consideres para entender el código y demás, ya que se trata de una app que venía desarrollando con otro modelo de IA, pero de ahora en más lo continuaremos contigo.
+
+**Respuesta:** (continuado en parte B — se interrumpió para agregar las tablas de constantes)
+
+---
+
+### PROMPT 13 (parte B — constantes del modelo)
+**Solicitud:**
+> Vi que estabas teniendo problemas con el combustible al no saber la relación de aire-oxígeno y combustible. Para combustible del ciclo Otto te adjunto esta tabla que deberás alojarla como CONSTANTES al momento de trabajar con los cálculos del ciclo Otto (ver imagen "image.png"). Después te paso otra tabla que tendrá los datos todos necesarios del AIRE (ver segunda adjunta) allí se incluye la ley de transformación de J a Cal (o su equivalente, de kJ a kCal). Por último te paso la tabla de datos sobre la combustión de AvGas 100LL. Fíjate que las usarás sobre todo para la determinación del calor generado por la combustión en la ETAPA de Combustión, en específico el último dato que se denomina "Relación de Masas: Combustible-Aire actual", que se refiere a la cantidad de masa de AvGas 100LL necesario para combustionar un total de 1kg de MEZCLA (sé que dice Aire, pero no, es de mezcla).
+
+**Respuesta:** Tabla de Estados reestructurada (HTML plano, no kendoGrid) con columnas ESTADO/ETAPA/Tiempo/P/ρ/v/T/u/h/q/w e intercalado estado↔proceso; ciclos-motores.js completado con los 3 ciclos usando constantes correctas (R=286.71, Cv=0.1715 kCal/kgK, J/kCal=4184, f_mezcla=0.068 kg AvGas/kg mezcla); CALCULAR popula la tabla desde los resultados calculados.
+
+---
+
+### PROMPT 14
+**Solicitud:**
+> Ok, tenemos un cambio tal grande o no, es necesario que lo analices. No podemos llamar al Kendo desde la web porque requerimos de usar funciones tales que, es necesario activar una licencia, y la cuestión es que ya tengo una licencia, traje a la carpeta TP1 la carpeta KENDO donde tengo toda la librería que utilizo licenciada, ¿puedes cambiar los links y/o scripts al kendo en la web para traer el kendo que ahora está al mismo nivel? Asegúrate lo mejor que puedas que las llamadas son correctas y que se van a leer los estilos y funcionalidad. Por otro lado, ¿puedes corroborar que esta versión de kendo que tengo puede graficar? Porque necesito más adelante hacer los gráficos P-V y T-S. Solo verifica que lo pueda hacer, no es necesario hacerlo aún.
+
+**Respuesta:** CDN de Kendo reemplazado por rutas locales `./KENDO/styles/` y `./KENDO/js/`; se agregaron los CSS de dataviz (`kendo.dataviz.min.css`, `kendo.dataviz.default.min.css`); confirmado que la carpeta local tiene `kendo.dataviz.chart.min.js` y soporte completo para gráficos P-V y T-S.
+
+---
+
+### PROMPT 15
+**Solicitud:**
+> Ok, tengo nuevas modificaciones: Agrega 1 nuevo parámetro de entrada "Delta" T_in (ΔT_in [K]) que representa el delta de temperatura por convección desde atmósfera hasta T1 (T1 = T_atm + ΔT), con kendoNumericTextBox, colocado en línea con el selector de ciclo. Revisa qué ocurre con los íconos de la tabla de historiales que no están apareciendo (están en blanco). Revisa los inputs ALTITUD, POTENCIA y CICLOS porque su border color es diferente del resto típico de Kendo. Incrementa TODAS las fonts en 2px. En la tabla RESUMEN alinea el texto a izquierda y los números al centro. En la tabla HISTORIAL alinea todo al centro. Los botones LIMPIAR y CALCULAR en mayúscula, ancho suficiente pero no exagerado, responsivo.
+
+**Respuesta:** ΔT_in agregado como kendoNumericTextBox (min=0, step=5) junto al ciclo-selector; íconos de historial corregidos (span con clase k-icon dentro del button); borders uniformizados a #c5c5c5 (Kendo); todas las font-sizes +2px en general.css; columnas numéricas del resumen centradas vía `attributes`; historial centrado; botones con uppercase, min-width 100px y max-width 160px.
+
+---
+
+### PROMPT 16
+**Solicitud:**
+> Te voy pasando lo siguiente, son tablas para guardar información del combustible que se utilizará para el ciclo DIESEL y solo para este ciclo. Úsalo del mismo modo que se usa el AvGas100LL pero recuerda, solo para ciclo Diesel se utilizará este nuevo combustible. Haz las modificaciones pertinentes para que de ahora en más este ciclo motor se calcule con este combustible. [Tablas: Propiedades Combustible Diesel (LHV=42.00 MJ/kg, densidad=0.82 kg/L) y Combustión Diesel (C₁₂H₂₆, f_mezcla=0.0638 kg/kg mezcla, AFR=15.66)].
+
+**Respuesta:** Constantes Diesel en `ciclos-motores.js` actualizadas: `diesel_LHV=42.00`, `diesel_f_mezcla=0.0638`, `diesel_densidad=0.82`, `diesel_AFR=14.68`, `diesel_n_C=12`, `diesel_n_H=26`, `diesel_M=160.14`; comentario "provisional" eliminado.
+
+---
+
 ## Notas
 - Formato: Solicitud = cita literal del prompt del usuario | Respuesta = resumen máx. 1 línea
 - Ubicación: `PROMPTS.md` en la raíz de `TP1/`

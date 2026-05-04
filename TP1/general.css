@@ -431,6 +431,31 @@ th, td {
     font-weight: 600;
 }
 
+/* Tabla de Estados y Tiempos del Ciclo */
+.tabla-ciclo-titulo {
+    background-color: #d8d8d8;
+    font-weight: 700;
+    text-align: center;
+    font-size: 11px;
+}
+
+#tabla-estados th {
+    background-color: #444;
+    color: #fff;
+    text-align: center;
+    white-space: nowrap;
+}
+
+#tabla-estados td {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.fila-proceso td {
+    background-color: #f2f2f2;
+    font-style: italic;
+}
+
 /* Kendo NumericTextBox personalizacion */
 .k-numeric-wrap {
     font-size: 11px;

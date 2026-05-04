@@ -9,10 +9,12 @@
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
-    <!-- Kendo UI for jQuery -->
-    <link rel="stylesheet" href="https://kendo.cdn.telerik.com/2024.1.319/styles/kendo.common.min.css">
-    <link rel="stylesheet" href="https://kendo.cdn.telerik.com/2024.1.319/styles/kendo.default.min.css">
-    <script src="https://kendo.cdn.telerik.com/2024.1.319/js/kendo.all.min.js"></script>
+    <!-- Kendo UI for jQuery (local) -->
+    <link rel="stylesheet" href="./KENDO/styles/kendo.common.min.css">
+    <link rel="stylesheet" href="./KENDO/styles/kendo.default.min.css">
+    <link rel="stylesheet" href="./KENDO/styles/kendo.dataviz.min.css">
+    <link rel="stylesheet" href="./KENDO/styles/kendo.dataviz.default.min.css">
+    <script src="./KENDO/js/kendo.all.min.js"></script>
     
     <!-- Estilos propios -->
     <link rel="stylesheet" href="general.css">
@@ -75,14 +77,20 @@
                             </div>
                         </div>
                         
-                        <div class="form-group full-width">
-                            <label for="ciclo-selector">Ciclo:</label>
-                            <select id="ciclo-selector">
-                                <option value="otto">Ciclo Otto</option>
-                                <option value="diesel">Ciclo Diesel</option>
-                                <option value="sabath">Ciclo Sabathé</option>
-                                <option value="comparacion">Comparativa</option>
-                            </select>
+                        <div class="form-columns" style="margin: 5px 0;">
+                            <div class="form-group">
+                                <label for="ciclo-selector">Ciclo:</label>
+                                <select id="ciclo-selector">
+                                    <option value="otto">Ciclo Otto</option>
+                                    <option value="diesel">Ciclo Diesel</option>
+                                    <option value="sabath">Ciclo Sabathé</option>
+                                    <option value="comparacion">Comparativa</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="delta-t-in">ΔT_in [K]:</label>
+                                <input type="text" id="delta-t-in" name="delta-t-in" class="kendo-numeric" data-tipo="adimensional">
+                            </div>
                         </div>
 
                         <div class="btns">

@@ -1,409 +1,812 @@
 /**
  * BEHAVIOUR.JS
  * Calculadora de Motores Pistoneros - Predimensionamiento Aeronáutico
- * 
- * Este archivo contiene la lógica de comportamiento de la aplicación.
  */
 
 $(document).ready(function() {
-    // --- VARIABLES GLOBALES ---
-    let cicloSeleccionado = null;
-    const ciclosDisponibles = {
-        'otto': 'Ciclo Otto',
-        'diesel': 'Ciclo Diesel',
-        'sabath': 'Ciclo Sabathé',
-        'comparacion': 'Comparación de Ciclos'
+
+    // ── VARIABLES GLOBALES ────────────────────────────────────────────────────
+    let historial = [];
+    let resultadosActuales = {};   // almacena el último resultado por ciclo
+
+    const ciclosSimples = {
+        'otto':   'Otto',
+        'diesel': 'Diesel',
+        'sabath': 'Sabathé'
     };
 
-    // --- INICIALIZACIÓN ---
-    inicializarEventos();
+    // ── INICIALIZACIÓN ────────────────────────────────────────────────────────
+    inicializarApp();
 
-    /**
-     * Inicializa los event listeners
-     */
-    function inicializarEventos() {
-        // Botones de selección de ciclo
-        $(document).on('click', '.btn-ciclo', function() {
-            const ciclo = $(this).data('ciclo');
-            seleccionarCiclo(ciclo);
+    function inicializarApp() {
+        inicializarKendoControls();
+        inicializarKendoGrids();
+        inicializarTablaEstados('otto');
+        inicializarGraficos();
+        inicializarEventos();
+        cargarHistorial();
+        actualizarTablaHistorial();
+    }
+
+    // ── KENDO CONTROLS ────────────────────────────────────────────────────────
+    function inicializarKendoControls() {
+        $('#rpm').kendoNumericTextBox({ min: 0, decimals: 0, step: 100 });
+        $('#mezcla-relativa').kendoNumericTextBox({ min: 1, decimals: 2, step: 0.5 });
+        $('#k-aire').kendoNumericTextBox({ min: 0, decimals: 3, step: 0.1, value: 1.4 });
+        $('#rendimiento-mecanico').kendoNumericTextBox({ min: 0, max: 1, decimals: 2, step: 0.05 });
+        $('#delta-t-in').kendoNumericTextBox({ min: 0, decimals: 1, step: 5, value: 0 });
+    }
+
+    // ── KENDO GRIDS (solo tabla-resumen) ──────────────────────────────────────
+    function inicializarKendoGrids() {
+        $('#tabla-resumen').kendoGrid({
+            sortable: false,
+            selectable: false,
+            resizable: true,
+            scrollable: false,
+            columns: [
+                { field: 'ciclo',      title: 'Ciclo',            width: 70, attributes: { style: 'text-align: left'   } },
+                { field: 't1',         title: 'T₁ [K]',           width: 65, attributes: { style: 'text-align: center' } },
+                { field: 't2',         title: 'T₂ [K]',           width: 65, attributes: { style: 'text-align: center' } },
+                { field: 't3',         title: 'T₃ [K]',           width: 65, attributes: { style: 'text-align: center' } },
+                { field: 't4',         title: 'T₄ [K]',           width: 65, attributes: { style: 'text-align: center' } },
+                { field: 'qin',        title: 'Q_in [kCal/kg]',   width: 95, attributes: { style: 'text-align: center' } },
+                { field: 'qout',       title: 'Q_out [kCal/kg]',  width: 95, attributes: { style: 'text-align: center' } },
+                { field: 'wneto',      title: 'W_neto [kJ/kg]',   width: 90, attributes: { style: 'text-align: center' } },
+                { field: 'eterma',     title: 'η Térmica',        width: 75, attributes: { style: 'text-align: center' } },
+                { field: 'cilindrada', title: 'Cilindrada',       width: 70, attributes: { style: 'text-align: center' } }
+            ],
+            dataSource: { data: [] }
+        });
+    }
+
+    // ── TABLA DE ESTADOS (HTML plano, no kendoGrid) ───────────────────────────
+
+    function fmt(n, dec) {
+        if (n == null) return '-';
+        return n.toLocaleString('es-AR', {
+            minimumFractionDigits: dec,
+            maximumFractionDigits: dec
+        });
+    }
+
+    function construirHTMLTabla(resultado) {
+        const titulo = `CICLO ${resultado.tipo_ciclo.toUpperCase()} IDEAL`;
+
+        let filas = '';
+        resultado.estados.forEach(function(e, i) {
+            filas += `<tr class="fila-estado">
+                <td>${e.num}</td><td>-</td><td>-</td>
+                <td>${fmt(e.P, 2)}</td>
+                <td>${fmt(e.rho, 4)}</td>
+                <td>${fmt(e.v, 6)}</td>
+                <td>${fmt(e.T, 2)}</td>
+                <td>${fmt(e.u, 3)}</td>
+                <td>${fmt(e.h, 3)}</td>
+                <td>-</td><td>-</td><td>-</td>
+            </tr>`;
+
+            if (i < resultado.procesos.length) {
+                const p = resultado.procesos[i];
+                filas += `<tr class="fila-proceso">
+                    <td>-</td><td>${p.etapa}</td><td>${p.tiempo}</td>
+                    <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+                    <td>${p.q != null ? fmt(p.q, 3) : '-'}</td>
+                    <td>${p.w != null ? fmt(p.w, 2) : '-'}</td>
+                    <td>${fmt(p.ds, 4)}</td>
+                </tr>`;
+            }
         });
 
-        // Botón de calcular
+        return `
+            <thead>
+                <tr><th colspan="12" class="tabla-ciclo-titulo">${titulo}</th></tr>
+                <tr>
+                    <th>ESTADO</th><th>ETAPA</th><th>Tiempo</th>
+                    <th>P [Pa]</th><th>ρ [kg/m³]</th><th>v [m³/kg]</th>
+                    <th>T [K]</th><th>u [kCal/kg]</th><th>h [kCal/kg]</th>
+                    <th>q [kCal/kg]</th><th>w [kJ/kg]</th><th>ΔS [kCal/(kg·K)]</th>
+                </tr>
+            </thead>
+            <tbody>${filas}</tbody>`;
+    }
+
+    function construirHTMLTablaVacia(ciclo) {
+        const titulos = {
+            otto:   'CICLO OTTO IDEAL',
+            diesel: 'CICLO DIESEL IDEAL',
+            sabath: 'CICLO SABATHÉ IDEAL'
+        };
+        const procesosOtto = [
+            { etapa: '(1-2)', tiempo: 'Compresión'    },
+            { etapa: '(2-3)', tiempo: 'Combustión'    },
+            { etapa: '(3-4)', tiempo: 'Expansión'     },
+            { etapa: '(4-1)', tiempo: 'Escape'        }
+        ];
+        const procesosSabath = [
+            { etapa: '(1-2)', tiempo: 'Compresión'    },
+            { etapa: '(2-3)', tiempo: 'Combustión VC' },
+            { etapa: '(3-4)', tiempo: 'Combustión PC' },
+            { etapa: '(4-5)', tiempo: 'Expansión'     },
+            { etapa: '(5-1)', tiempo: 'Escape'        }
+        ];
+        const nEstados = ciclo === 'sabath' ? 5 : 4;
+        const procesos = ciclo === 'sabath' ? procesosSabath : procesosOtto;
+
+        let filas = '';
+        for (let i = 1; i <= nEstados; i++) {
+            filas += `<tr class="fila-estado">
+                <td>${i}</td><td>-</td><td>-</td>
+                <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+            </tr>`;
+            if (i <= procesos.length) {
+                const p = procesos[i - 1];
+                filas += `<tr class="fila-proceso">
+                    <td>-</td><td>${p.etapa}</td><td>${p.tiempo}</td>
+                    <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+                </tr>`;
+            }
+        }
+
+        return `
+            <thead>
+                <tr><th colspan="12" class="tabla-ciclo-titulo">${titulos[ciclo] || titulos.otto}</th></tr>
+                <tr>
+                    <th>ESTADO</th><th>ETAPA</th><th>Tiempo</th>
+                    <th>P [Pa]</th><th>ρ [kg/m³]</th><th>v [m³/kg]</th>
+                    <th>T [K]</th><th>u [kCal/kg]</th><th>h [kCal/kg]</th>
+                    <th>q [kCal/kg]</th><th>w [kJ/kg]</th><th>ΔS [kCal/(kg·K)]</th>
+                </tr>
+            </thead>
+            <tbody>${filas}</tbody>`;
+    }
+
+    function inicializarTablaEstados(ciclo) {
+        $('#tabla-estados').html(construirHTMLTablaVacia(ciclo));
+    }
+
+    function cargarTablaEstados(ciclo, resultado) {
+        if (!resultado) {
+            inicializarTablaEstados(ciclo);
+            return;
+        }
+        $('#tabla-estados').html(construirHTMLTabla(resultado));
+    }
+
+    function actualizarTablaEstados(ciclo) {
+        if (resultadosActuales[ciclo]) {
+            cargarTablaEstados(ciclo, resultadosActuales[ciclo]);
+        } else {
+            inicializarTablaEstados(ciclo);
+        }
+    }
+
+    // ── TABLA RESUMEN ─────────────────────────────────────────────────────────
+    function cargarTablaResumen(resultado) {
+        const r = resultado;
+        const T = r.estados;
+        const datos = [{
+            ciclo:      r.tipo_ciclo,
+            t1:         fmt(T[0].T, 2),
+            t2:         fmt(T[1].T, 2),
+            t3:         fmt(T[2].T, 2),
+            t4:         fmt(T[3] ? T[3].T : null, 2),
+            qin:        fmt(r.rendimientos.q_in, 3),
+            qout:       fmt(r.rendimientos.q_out, 3),
+            wneto:      fmt(r.rendimientos.w_neto, 2),
+            eterma:     (r.rendimientos.eta_th * 100).toFixed(2) + '%',
+            cilindrada: fmt(r.rendimientos.cilindrada_L, 2) + ' L'
+        }];
+        const $grid = $('#tabla-resumen').data('kendoGrid');
+        if ($grid) $grid.dataSource.data(datos);
+    }
+
+    function cargarTablaResumenComparativa(resultados) {
+        const datos = resultados.map(function(r) {
+            const T = r.estados;
+            return {
+                ciclo:      r.tipo_ciclo,
+                t1:         fmt(T[0].T, 2),
+                t2:         fmt(T[1].T, 2),
+                t3:         fmt(T[2].T, 2),
+                t4:         fmt(T[3] ? T[3].T : null, 2),
+                qin:        fmt(r.rendimientos.q_in, 3),
+                qout:       fmt(r.rendimientos.q_out, 3),
+                wneto:      fmt(r.rendimientos.w_neto, 2),
+                eterma:     (r.rendimientos.eta_th * 100).toFixed(2) + '%',
+                cilindrada: fmt(r.rendimientos.cilindrada_L, 2) + ' L'
+            };
+        });
+        const $grid = $('#tabla-resumen').data('kendoGrid');
+        if ($grid) $grid.dataSource.data(datos);
+    }
+
+    // ── EVENTOS ───────────────────────────────────────────────────────────────
+    function inicializarEventos() {
         $(document).on('click', '#btn-calcular', function(e) {
             e.preventDefault();
             realizarCalculo();
         });
 
-        // Reset del formulario
         $(document).on('click', '.btn-secondary', function() {
             limpiarFormulario();
         });
 
-        // Campos con parseado automático
-        $(document).on('input', '.parseado', function() {
-            parsearNumeroAutomatico($(this));
+        $(document).on('change', '#ciclo-estados', function() {
+            actualizarTablaEstados($(this).val());
         });
 
-        // Validación de rendimiento mecánico
-        $(document).on('blur', '#rendimiento-mecanico', function() {
-            validarRendimientoMecanico($(this));
+        $(document).on('change', '#ciclo-pv', function() {
+            const c = $(this).val();
+            if (resultadosActuales[c]) renderizarGraficoPV(resultadosActuales[c]);
         });
 
-        // Validación general de parámetros
-        $(document).on('change', '#parametros-form input, #parametros-form select', function() {
-            validarCampo($(this));
+        $(document).on('change', '#ciclo-ts', function() {
+            const c = $(this).val();
+            if (resultadosActuales[c]) renderizarGraficoTS(resultadosActuales[c]);
+        });
+
+        $(window).on('resize', function() {
+            const cPV = $('#plot-pv').data('kendoChart');
+            const cTS = $('#plot-ts').data('kendoChart');
+            if (cPV) cPV.resize();
+            if (cTS) cTS.resize();
+        });
+
+        $(document).on('click', '#modal-close-btn', function() {
+            cerrarModal();
+        });
+
+        $(document).on('click', '#historial-modal', function(e) {
+            if (e.target === this) cerrarModal();
+        });
+
+        $(window).on('beforeunload', function() {
+            limpiarHistorialStorage();
+        });
+
+        // Quitar borde de error al escribir
+        $('#parametros-form').on('input change', 'input, select', function() {
+            $(this).removeClass('input-error');
         });
     }
 
-    /**
-     * Selecciona el ciclo termodinámico
-     * @param {string} ciclo - Código del ciclo (otto, diesel, sabath, comparacion)
-     */
-    function seleccionarCiclo(ciclo) {
-        cicloSeleccionado = ciclo;
+    // ── CÁLCULO PRINCIPAL ─────────────────────────────────────────────────────
+    async function realizarCalculo() {
+        $('#parametros-form').find('input, select').removeClass('input-error');
 
-        // Actualizar visualización de botones
-        $('.btn-ciclo').removeClass('active');
-        $(`.btn-ciclo[data-ciclo="${ciclo}"]`).addClass('active');
-
-        console.log(`Ciclo seleccionado: ${ciclosDisponibles[ciclo]}`);
-    }
-
-    /**
-     * Parsea un número automáticamente permitiendo puntos de miles y comas para decimales
-     * Entrada: "2.500,5" → Salida: 2500.5
-     * @param {jQuery} $input - Elemento input a parsear
-     */
-    function parsearNumeroAutomatico($input) {
-        let valor = $input.val().trim();
-        
-        if (valor === '') return;
-
-        // Remover espacios
-        valor = valor.replace(/\s/g, '');
-
-        // Detectar si la coma es separador de decimales o miles
-        // Si hay punto y coma: el punto es separador de miles
-        // Si solo hay coma: es separador de decimales
-        // Si solo hay punto: es separador de decimales
-        
-        if (valor.includes('.') && valor.includes(',')) {
-            // Caso: 2.500,5 → 2500.5
-            valor = valor.replace(/\./g, '').replace(',', '.');
-        } else if (valor.includes(',') && !valor.includes('.')) {
-            // Caso: 2500,5 → 2500.5
-            valor = valor.replace(',', '.');
-        } else if (valor.includes('.') && !valor.includes(',')) {
-            // Ambiguo: 2500.5 podría ser 2500.5 o 2.5005
-            // Seguimos formato internacional: si hay un punto al final, es decimal
-            // Si hay más de un punto, el último es decimal
-            const partes = valor.split('.');
-            if (partes.length === 2) {
-                // Un solo punto: asumir decimal
-                valor = parseFloat(valor);
-            } else {
-                // Múltiples puntos (poco probable)
-                valor = valor.replace(/\.(?=.*\.)/g, '').replace('.', '.');
-            }
-        }
-
-        // Validar que sea un número válido
-        const numero = parseFloat(valor);
-        if (isNaN(numero)) {
-            $input.css('border-color', '#ff6b6b');
+        const ciclo = $('#ciclo-selector').val();
+        if (!ciclo) {
+            $('#ciclo-selector').addClass('input-error');
+            mostrarAlerta('Selecciona un tipo de ciclo antes de calcular.', 'warning');
             return;
         }
 
-        // Mantener el valor limpio en el input para edición
-        $input.css('border-color', '#ddd');
-    }
+        const parametros = obtenerParametros();
+        if (!validarParametros(parametros)) return;
 
-    /**
-     * Valida un campo individual
-     * @param {jQuery} $campo - Campo a validar
-     */
-    function validarCampo($campo) {
-        const id = $campo.attr('id');
-        const valor = $campo.val().trim();
-
-        // Campos opcionales
-        if (id === 'combustible' || id === 'k-aire') {
-            $campo.css('border-color', '#ddd');
-            return;
-        }
-
-        // Campos requeridos - validar que no estén vacíos
-        if (valor === '') {
-            $campo.css('border-color', '#ff6b6b');
-            return;
-        }
-
-        // Campos numéricos - convertir a número
-        const numero = convertirANumero($campo);
-        
-        if (numero === null) {
-            $campo.css('border-color', '#ff6b6b');
-            return;
-        }
-
-        // Validaciones específicas
-        if (id === 'rendimiento-mecanico') {
-            if (numero <= 0 || numero >= 1) {
-                $campo.css('border-color', '#ff6b6b');
+        try {
+            if (typeof CiclosMotores === 'undefined') {
+                mostrarAlerta('Error: módulo de ciclos no disponible.', 'error');
                 return;
             }
-        }
 
-        // Si todo está bien
-        $campo.css('border-color', '#ddd');
+            let resultados = [];
+
+            if (ciclo === 'comparacion') {
+                ['otto', 'diesel', 'sabath'].forEach(function(c) {
+                    const res = CiclosMotores.calcular(c, parametros);
+                    resultadosActuales[c] = res;
+                    resultados.push(res);
+                });
+
+                $('#ciclo-estados').val('otto').prop('disabled', false);
+                cargarTablaEstados('otto', resultadosActuales['otto']);
+                cargarTablaResumenComparativa(resultados);
+
+                ['pv', 'ts'].forEach(function(g) {
+                    $('#ciclo-' + g).prop('disabled', false);
+                });
+
+            } else {
+                const resultado = CiclosMotores.calcular(ciclo, parametros);
+                resultadosActuales[ciclo] = resultado;
+                resultados.push(resultado);
+
+                $('#ciclo-estados').val(ciclo).prop('disabled', true);
+                cargarTablaEstados(ciclo, resultado);
+                cargarTablaResumen(resultado);
+
+                ['pv', 'ts'].forEach(function(g) {
+                    $('#ciclo-' + g).val(ciclo).prop('disabled', true);
+                });
+            }
+
+            // ── Actualizar gráficos
+            const cicloPV = $('#ciclo-pv').val();
+            const cicloTS = $('#ciclo-ts').val();
+            if (resultadosActuales[cicloPV]) renderizarGraficoPV(resultadosActuales[cicloPV]);
+            if (resultadosActuales[cicloTS]) renderizarGraficoTS(resultadosActuales[cicloTS]);
+
+            // ── Historial
+            const idHistorial = generarIDHistorial();
+            const itemHistorial = {
+                id: idHistorial,
+                fechaObjeto: new Date(),
+                ciclo: ciclo === 'comparacion' ? 'Comparativa' : ciclosSimples[ciclo],
+                parametros: {
+                    rpm:                 parametros.rpm,
+                    potencia:            parametros.potencia.valor,
+                    potencia_unidad:     parametros.potencia.unidad,
+                    altitud:             parametros.altitud.valor,
+                    altitud_unidad:      parametros.altitud.unidad,
+                    mezcla_relativa:     parametros.mezlaRelativa,
+                    k_aire:              parametros.kAire,
+                    rendimiento_mecanico: parametros.rendimientoMecanico,
+                    delta_t_in:          parametros.deltaT
+                }
+            };
+
+            if (!existeEnHistorial(itemHistorial)) {
+                historial.push(itemHistorial);
+                guardarHistorial();
+                actualizarTablaHistorial();
+                mostrarAlerta('Cálculo completado y guardado en historial.', 'success');
+            } else {
+                mostrarAlerta('Este cálculo ya existe en el historial.', 'info');
+            }
+
+        } catch (error) {
+            console.error('Error en cálculo:', error);
+            mostrarAlerta('Error durante el cálculo: ' + error.message, 'error');
+        }
     }
 
-    /**
-     * Valida específicamente el rendimiento mecánico (0 < η < 1)
-     * @param {jQuery} $input - Campo de rendimiento mecánico
-     */
-    function validarRendimientoMecanico($input) {
-        const numero = convertirANumero($input);
-        
-        if (numero === null) {
-            mostrarAlerta('Rendimiento: ingresa un número válido', 'error');
-            $input.css('border-color', '#ff6b6b');
-            return;
-        }
-
-        if (numero <= 0 || numero >= 1) {
-            mostrarAlerta('Rendimiento mecánico debe estar entre 0 y 1 (sin incluir los límites)', 'error');
-            $input.css('border-color', '#ff6b6b');
-        } else {
-            $input.css('border-color', '#ddd');
-        }
-    }
-
-    /**
-     * Convierte un valor string a número parseando puntos de miles y comas
-     * @param {jQuery} $input - Input element
-     * @returns {number|null} Número parseado o null si es inválido
-     */
-    function convertirANumero($input) {
-        let valor = $input.val().trim();
-        
-        if (valor === '') return null;
-
-        // Remover espacios
-        valor = valor.replace(/\s/g, '');
-
-        // Parsear según formato
-        if (valor.includes('.') && valor.includes(',')) {
-            // Formato: 2.500,5
-            valor = valor.replace(/\./g, '').replace(',', '.');
-        } else if (valor.includes(',') && !valor.includes('.')) {
-            // Formato: 2500,5
-            valor = valor.replace(',', '.');
-        }
-
-        const numero = parseFloat(valor);
-        return isNaN(numero) ? null : numero;
-    }
-
-    /**
-     * Realiza el cálculo de predimensionamiento
-     */
-    function realizarCalculo() {
-        // Validar que se haya seleccionado un ciclo
-        if (!cicloSeleccionado) {
-            mostrarAlerta('Selecciona un tipo de ciclo antes de calcular', 'warning');
-            return;
-        }
-
-        // Obtener parámetros del formulario
-        const parametros = obtenerParametros();
-
-        // Validar parámetros
-        if (!parametrosValidos(parametros)) {
-            mostrarAlerta('Completa todos los parámetros correctamente', 'error');
-            return;
-        }
-
-        // Mostrar resultado de recopilación de datos
-        console.log('Parámetros recopilados:', parametros);
-        mostrarAlerta('Parámetros recopilados correctamente. Próximamente se implementarán los cálculos.', 'success');
-        mostrarParametrosRecopilados(parametros);
-    }
-
-    /**
-     * Obtiene los parámetros del formulario
-     * @returns {object} Objeto con los parámetros de entrada
-     */
+    // ── PARÁMETROS Y VALIDACIÓN ───────────────────────────────────────────────
     function obtenerParametros() {
-        const parametros = {
+        return {
             altitud: {
                 valor: convertirANumero($('#altitud')),
                 unidad: $('#unidad-altitud').val()
             },
-            potencia: convertirANumero($('#potencia')),
-            combustible: $('#combustible').val().trim(),
-            mezlaRelativa: convertirANumero($('#mezcla-relativa')),
-            rpm: convertirANumero($('#rpm')),
-            kAire: convertirANumero($('#k-aire')),
-            rendimientoMecanico: convertirANumero($('#rendimiento-mecanico')),
-            ciclo: cicloSeleccionado
+            potencia: {
+                valor: convertirANumero($('#potencia')),
+                unidad: $('#unidad-potencia').val()
+            },
+            mezlaRelativa:      $('#mezcla-relativa').data('kendoNumericTextBox').value(),
+            rpm:                $('#rpm').data('kendoNumericTextBox').value(),
+            kAire:              $('#k-aire').data('kendoNumericTextBox').value(),
+            rendimientoMecanico: $('#rendimiento-mecanico').data('kendoNumericTextBox').value(),
+            deltaT:             $('#delta-t-in').data('kendoNumericTextBox').value() || 0,
+            ciclo:              $('#ciclo-selector').val()
         };
-
-        return parametros;
     }
 
-    /**
-     * Valida que los parámetros sean válidos
-     * @param {object} parametros - Parámetros a validar
-     * @returns {boolean} true si los parámetros son válidos
-     */
-    function parametrosValidos(parametros) {
-        // Validar que altitud, potencia, mezcla, rpm y rendimiento sean números válidos
-        if (parametros.altitud.valor === null || parametros.altitud.valor < 0) {
-            mostrarAlerta('Altitud: valor inválido o negativo', 'error');
+    function validarParametros(p) {
+        if (p.altitud.valor === null || p.altitud.valor < 0) {
+            $('#altitud').addClass('input-error');
+            mostrarAlerta('Altitud: valor inválido o negativo.', 'error');
             return false;
         }
-
-        if (parametros.potencia === null || parametros.potencia <= 0) {
-            mostrarAlerta('Potencia: debe ser un número positivo', 'error');
+        if (p.potencia.valor === null || p.potencia.valor <= 0) {
+            $('#potencia').addClass('input-error');
+            mostrarAlerta('Potencia: debe ser un número positivo.', 'error');
             return false;
         }
-
-        if (parametros.combustible === '') {
-            mostrarAlerta('Combustible: campo requerido', 'error');
+        if (p.mezlaRelativa === null || p.mezlaRelativa <= 1) {
+            $('#mezcla-relativa').addClass('input-error');
+            mostrarAlerta('Relación de Compresión: debe ser mayor a 1.', 'error');
             return false;
         }
-
-        if (parametros.mezlaRelativa === null || parametros.mezlaRelativa <= 0) {
-            mostrarAlerta('Mezcla relativa: debe ser un número positivo', 'error');
+        if (p.rpm === null || p.rpm <= 0) {
+            $('#rpm').addClass('input-error');
+            mostrarAlerta('RPM: debe ser un número positivo.', 'error');
             return false;
         }
-
-        if (parametros.rpm === null || parametros.rpm <= 0) {
-            mostrarAlerta('RPM: debe ser un número positivo', 'error');
+        if (p.kAire === null || p.kAire <= 1) {
+            $('#k-aire').addClass('input-error');
+            mostrarAlerta('k del aire: debe ser mayor a 1.', 'error');
             return false;
         }
-
-        if (parametros.kAire === null || parametros.kAire <= 0) {
-            mostrarAlerta('k del aire: debe ser un número positivo', 'error');
+        if (p.rendimientoMecanico === null || p.rendimientoMecanico <= 0 || p.rendimientoMecanico >= 1) {
+            $('#rendimiento-mecanico').addClass('input-error');
+            mostrarAlerta('Rendimiento mecánico: debe estar entre 0 y 1 (excl.).', 'error');
             return false;
         }
-
-        if (parametros.rendimientoMecanico === null || 
-            parametros.rendimientoMecanico <= 0 || 
-            parametros.rendimientoMecanico >= 1) {
-            mostrarAlerta('Rendimiento mecánico: debe estar entre 0 y 1 (sin incluir los límites)', 'error');
-            return false;
-        }
-
         return true;
     }
 
-    /**
-     * Muestra los parámetros recopilados en la sección de resultados
-     * @param {object} parametros - Parámetros recopilados
-     */
-    function mostrarParametrosRecopilados(parametros) {
-        const $resultadosSection = $('#resultados-section');
-        const $resultadosContainer = $('#resultados-container');
-
-        $resultadosContainer.empty();
-
-        // Ciclo seleccionado
-        $resultadosContainer.append(
-            `<div class="resultado-item">
-                <label>Ciclo Seleccionado</label>
-                <div class="valor">${ciclosDisponibles[parametros.ciclo]}</div>
-            </div>`
-        );
-
-        // Altitud
-        $resultadosContainer.append(
-            `<div class="resultado-item">
-                <label>Altitud</label>
-                <div class="valor">${parametros.altitud.valor.toFixed(2)}<span class="unidad">${parametros.altitud.unidad}</span></div>
-            </div>`
-        );
-
-        // Potencia
-        $resultadosContainer.append(
-            `<div class="resultado-item">
-                <label>Potencia Requerida</label>
-                <div class="valor">${parametros.potencia.toFixed(2)}<span class="unidad">kW</span></div>
-            </div>`
-        );
-
-        // Combustible
-        $resultadosContainer.append(
-            `<div class="resultado-item">
-                <label>Combustible</label>
-                <div class="valor">${parametros.combustible}</div>
-            </div>`
-        );
-
-        // Mezcla Relativa
-        $resultadosContainer.append(
-            `<div class="resultado-item">
-                <label>Mezcla Relativa (λ)</label>
-                <div class="valor">${parametros.mezlaRelativa.toFixed(4)}</div>
-            </div>`
-        );
-
-        // RPM
-        $resultadosContainer.append(
-            `<div class="resultado-item">
-                <label>RPM</label>
-                <div class="valor">${Math.round(parametros.rpm).toLocaleString()}</div>
-            </div>`
-        );
-
-        // k del aire
-        $resultadosContainer.append(
-            `<div class="resultado-item">
-                <label>k del Aire (γ)</label>
-                <div class="valor">${parametros.kAire.toFixed(3)}</div>
-            </div>`
-        );
-
-        // Rendimiento Mecánico
-        $resultadosContainer.append(
-            `<div class="resultado-item">
-                <label>Rendimiento Mecánico</label>
-                <div class="valor">${(parametros.rendimientoMecanico * 100).toFixed(2)}<span class="unidad">%</span></div>
-            </div>`
-        );
-
-        $resultadosSection.show();
+    function convertirANumero($input) {
+        let valor = $input.val().trim();
+        if (valor === '') return null;
+        valor = valor.replace(/\s/g, '');
+        if (valor.includes('.') && valor.includes(',')) {
+            valor = valor.replace(/\./g, '').replace(',', '.');
+        } else if (valor.includes(',') && !valor.includes('.')) {
+            valor = valor.replace(',', '.');
+        }
+        const n = parseFloat(valor);
+        return isNaN(n) ? null : n;
     }
 
-    /**
-     * Limpia el formulario y resultados
-     */
+    // ── FORMULARIO ────────────────────────────────────────────────────────────
     function limpiarFormulario() {
-        $('#resultados-section').hide();
-        $('#resultados-container').empty();
         $('#parametros-form')[0].reset();
-        $('#k-aire').val('1,4'); // Restablecer valor por defecto
-        $(document).find('#parametros-form input, #parametros-form select')
-            .css('border-color', '#ddd');
+        $('#rpm').data('kendoNumericTextBox').value(null);
+        $('#mezcla-relativa').data('kendoNumericTextBox').value(null);
+        $('#k-aire').data('kendoNumericTextBox').value(1.4);
+        $('#rendimiento-mecanico').data('kendoNumericTextBox').value(null);
+        $('#delta-t-in').data('kendoNumericTextBox').value(0);
+        $('#potencia').val('');
+        $('#altitud').val('');
+        $('#ciclo-estados').prop('disabled', false).val('otto');
+        $('#ciclo-pv').prop('disabled', false).val('otto');
+        $('#ciclo-ts').prop('disabled', false).val('otto');
+        $('#parametros-form input, #parametros-form select').removeClass('input-error');
+        resultadosActuales = {};
+        inicializarTablaEstados('otto');
+        const $grid = $('#tabla-resumen').data('kendoGrid');
+        if ($grid) $grid.dataSource.data([]);
+        // Limpiar gráficos
+        ['#plot-pv', '#plot-ts'].forEach(function(sel) {
+            const c = $(sel).data('kendoChart');
+            if (c) { c.options.series = []; c.refresh(); }
+        });
     }
 
-    /**
-     * Muestra un mensaje de alerta
-     * @param {string} mensaje - Texto del mensaje
-     * @param {string} tipo - Tipo de alerta (warning, error, success)
-     */
-    function mostrarAlerta(mensaje, tipo = 'warning') {
-        const alertHTML = `<div class="alert alert-${tipo}">${mensaje}</div>`;
-        const $alerta = $(alertHTML);
-        
-        $('.parametros-section').prepend($alerta);
-        
-        // Remover alerta después de 5 segundos
-        setTimeout(function() {
-            $alerta.fadeOut(300, function() {
-                $(this).remove();
+    // ── HISTORIAL ─────────────────────────────────────────────────────────────
+    function generarIDHistorial() {
+        const d = new Date();
+        const p = n => String(n).padStart(2, '0');
+        return `${p(d.getDate())}-${p(d.getMonth()+1)}-${d.getFullYear()} - ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    }
+
+    function formatearFecha(fecha) {
+        const p = n => String(n).padStart(2, '0');
+        return `${p(fecha.getDate())}-${p(fecha.getMonth()+1)}-${fecha.getFullYear()} - ${p(fecha.getHours())}:${p(fecha.getMinutes())}:${p(fecha.getSeconds())}`;
+    }
+
+    function existeEnHistorial(nuevo) {
+        return historial.some(function(item) {
+            return item.ciclo === nuevo.ciclo &&
+                item.parametros.rpm === nuevo.parametros.rpm &&
+                item.parametros.potencia === nuevo.parametros.potencia &&
+                item.parametros.potencia_unidad === nuevo.parametros.potencia_unidad &&
+                item.parametros.altitud === nuevo.parametros.altitud &&
+                item.parametros.altitud_unidad === nuevo.parametros.altitud_unidad &&
+                item.parametros.mezcla_relativa === nuevo.parametros.mezcla_relativa &&
+                item.parametros.k_aire === nuevo.parametros.k_aire &&
+                item.parametros.rendimiento_mecanico === nuevo.parametros.rendimiento_mecanico &&
+                (item.parametros.delta_t_in || 0) === (nuevo.parametros.delta_t_in || 0);
+        });
+    }
+
+    function guardarHistorial() {
+        const serializado = historial.map(function(item) {
+            return Object.assign({}, item, { fechaObjeto: item.fechaObjeto.toISOString() });
+        });
+        localStorage.setItem('historial_calculos', JSON.stringify(serializado));
+    }
+
+    function cargarHistorial() {
+        const guardado = localStorage.getItem('historial_calculos');
+        if (!guardado) return;
+        try {
+            historial = JSON.parse(guardado).map(function(item) {
+                return Object.assign({}, item, { fechaObjeto: new Date(item.fechaObjeto) });
             });
-        }, 5000);
+        } catch(e) {
+            console.error('Error cargando historial:', e);
+            historial = [];
+        }
+    }
+
+    function limpiarHistorialStorage() {
+        localStorage.removeItem('historial_calculos');
+    }
+
+    function actualizarTablaHistorial() {
+        const $tbody = $('#historial-body');
+        $tbody.empty();
+
+        if (historial.length === 0) {
+            $tbody.append('<tr><td colspan="3" style="text-align:center;">Sin registros</td></tr>');
+            return;
+        }
+
+        historial.forEach(function(item) {
+            const id = item.id;
+            const btnC = `<button class="historial-btn" data-id="${id}" data-action="consulta"  title="Consultar"><span class="k-icon k-i-search"></span></button>`;
+            const btnL = `<button class="historial-btn" data-id="${id}" data-action="cargar"    title="Cargar parámetros"><span class="k-icon k-i-arrow-60-up"></span></button>`;
+            const btnE = `<button class="historial-btn" data-id="${id}" data-action="eliminar"  title="Eliminar"><span class="k-icon k-i-delete"></span></button>`;
+            const fila = $('<tr>')
+                .append(`<td>${formatearFecha(item.fechaObjeto)}</td>`)
+                .append(`<td>${item.ciclo}</td>`)
+                .append(`<td><div class="botones-accion">${btnC}${btnL}${btnE}</div></td>`);
+            $tbody.append(fila);
+
+            fila.find('.historial-btn').on('click', function(e) {
+                e.preventDefault();
+                const action = $(this).data('action');
+                const itemId = $(this).data('id');
+                if (action === 'consulta')  abrirModalConsulta(itemId);
+                if (action === 'cargar')    cargarParametrosDelHistorial(itemId);
+                if (action === 'eliminar')  eliminarDelHistorial(itemId);
+            });
+        });
+    }
+
+    // ── MODAL ─────────────────────────────────────────────────────────────────
+    function abrirModalConsulta(itemId) {
+        const item = historial.find(function(h) { return h.id === itemId; });
+        if (!item) return;
+
+        $('#modal-fecha').text(formatearFecha(item.fechaObjeto));
+        $('#modal-ciclo').text(item.ciclo);
+
+        const $tbody = $('#modal-datos-body');
+        $tbody.empty();
+
+        const labels = {
+            rpm:                  { label: 'RPM',                   unidad: ''                },
+            potencia:             { label: 'Potencia',              unidad: 'potencia_unidad'  },
+            altitud:              { label: 'Altitud',               unidad: 'altitud_unidad'   },
+            mezcla_relativa:      { label: 'Relación de Compresión', unidad: ''               },
+            k_aire:               { label: 'k del Aire (γ)',         unidad: ''               },
+            rendimiento_mecanico: { label: 'Rendimiento Mecánico',   unidad: ''               },
+            delta_t_in:           { label: 'ΔT_in [K]',              unidad: ''               }
+        };
+
+        Object.entries(labels).forEach(function([key, cfg]) {
+            let valor = item.parametros[key];
+            const unidad = cfg.unidad ? item.parametros[cfg.unidad] : '';
+            if (typeof valor === 'number') {
+                valor = valor.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 4 });
+            }
+            $tbody.append(
+                $('<tr>').append(`<td>${cfg.label}</td><td>${valor}</td><td>${unidad}</td>`)
+            );
+        });
+
+        $('#historial-modal').css('display', 'flex');
+    }
+
+    function cerrarModal() {
+        $('#historial-modal').css('display', 'none');
+    }
+
+    function cargarParametrosDelHistorial(itemId) {
+        const item = historial.find(function(h) { return h.id === itemId; });
+        if (!item) return;
+
+        $('#rpm').data('kendoNumericTextBox').value(item.parametros.rpm);
+        $('#potencia').val(item.parametros.potencia);
+        $('#unidad-potencia').val(item.parametros.potencia_unidad);
+        $('#altitud').val(item.parametros.altitud);
+        $('#unidad-altitud').val(item.parametros.altitud_unidad);
+        $('#mezcla-relativa').data('kendoNumericTextBox').value(item.parametros.mezcla_relativa);
+        $('#k-aire').data('kendoNumericTextBox').value(item.parametros.k_aire);
+        $('#rendimiento-mecanico').data('kendoNumericTextBox').value(item.parametros.rendimiento_mecanico);
+        $('#delta-t-in').data('kendoNumericTextBox').value(item.parametros.delta_t_in || 0);
+
+        mostrarAlerta('Parámetros cargados desde historial.', 'success');
+    }
+
+    function eliminarDelHistorial(itemId) {
+        historial = historial.filter(function(h) { return h.id !== itemId; });
+        guardarHistorial();
+        actualizarTablaHistorial();
+        mostrarAlerta('Cálculo eliminado del historial.', 'info');
+    }
+
+    // ── GRÁFICOS P-V y T-S ────────────────────────────────────────────────────
+    const CHART_COLOR_LINEA = '#1e3a5f';
+    const CHART_COLOR_DOT   = '#c0392b';
+    const CHART_N_PUNTOS    = 40;
+
+    function inicializarGraficos() {
+        crearGraficoBase('#plot-pv', 'v [m³/kg]', 'P [kPa]', '{0:n3}', '{0:n0}');
+        crearGraficoBase('#plot-ts', 'S [kCal/(kg·K)]', 'T [K]', '{0:n4}', '{0:n0}');
+    }
+
+    function crearGraficoBase(selector, xLabel, yLabel, xFmt, yFmt) {
+        const $el = $(selector);
+        const inst = $el.data('kendoChart');
+        if (inst) inst.destroy();
+        $el.empty();
+        $el.kendoChart({
+            legend:  { visible: false },
+            series:  [],
+            xAxis: {
+                title: { text: xLabel, font: '11px Segoe UI', margin: { top: 2 } },
+                labels: { font: '10px Segoe UI', format: xFmt, rotation: -30 },
+                majorGridLines: { color: '#e8e8e8' }
+            },
+            yAxis: {
+                title: { text: yLabel, font: '11px Segoe UI', margin: { right: 2 } },
+                labels: { font: '10px Segoe UI', format: yFmt },
+                majorGridLines: { color: '#e8e8e8' }
+            },
+            tooltip: { visible: false },
+            chartArea: { background: 'transparent', border: { width: 0 }, margin: 4 },
+            plotArea:  { border: { width: 0 }, margin: { top: 10, right: 10, bottom: 5, left: 5 } }
+        });
+    }
+
+    function renderizarGraficoPV(resultado) {
+        const chart = $('#plot-pv').data('kendoChart');
+        if (!chart || !resultado) return;
+        chart.options.series = generarSeriesPV(resultado);
+        chart.refresh();
+    }
+
+    function renderizarGraficoTS(resultado) {
+        const chart = $('#plot-ts').data('kendoChart');
+        if (!chart || !resultado) return;
+        chart.options.series = generarSeriesTS(resultado);
+        chart.refresh();
+    }
+
+    function _construirSeriesChart(procPts, estadosPuntos) {
+        const series = [];
+        procPts.forEach(function(pts) {
+            series.push({
+                type: 'scatterLine',
+                data: pts,
+                color: CHART_COLOR_LINEA,
+                width: 2,
+                markers: { visible: false },
+                tooltip: { visible: false },
+                visibleInLegend: false
+            });
+        });
+        estadosPuntos.forEach(function(ep) {
+            series.push({
+                type: 'scatter',
+                name: ep.label,
+                data: [{ x: ep.x, y: ep.y }],
+                color: CHART_COLOR_DOT,
+                markers: {
+                    type: 'circle', size: 9,
+                    background: CHART_COLOR_DOT,
+                    border: { color: '#fff', width: 2 }
+                },
+                tooltip: {
+                    visible: true,
+                    template: 'Estado #= series.name #'
+                },
+                visibleInLegend: false
+            });
+        });
+        return series;
+    }
+
+    function generarSeriesPV(resultado) {
+        const est  = resultado.estados;
+        const k    = resultado.k_aire;
+        const tipo = resultado.tipo_ciclo.toLowerCase();
+        const n    = CHART_N_PUNTOS;
+
+        function adiabatica(eA, eB) {
+            const C = eA.P * Math.pow(eA.v, k);
+            const pts = [];
+            for (let i = 0; i <= n; i++) {
+                const v = eA.v + (eB.v - eA.v) * i / n;
+                pts.push({ x: v, y: C / Math.pow(v, k) / 1000 });
+            }
+            return pts;
+        }
+        function isochorica(eA, eB) {
+            return [{ x: eA.v, y: eA.P / 1000 }, { x: eB.v, y: eB.P / 1000 }];
+        }
+        function isobarica(eA, eB) {
+            return [{ x: eA.v, y: eA.P / 1000 }, { x: eB.v, y: eB.P / 1000 }];
+        }
+
+        const procPts = [];
+        if (tipo === 'otto') {
+            procPts.push(adiabatica(est[0], est[1]));
+            procPts.push(isochorica(est[1], est[2]));
+            procPts.push(adiabatica(est[2], est[3]));
+            procPts.push(isochorica(est[3], est[0]));
+        } else if (tipo === 'diesel') {
+            procPts.push(adiabatica(est[0], est[1]));
+            procPts.push(isobarica(est[1], est[2]));
+            procPts.push(adiabatica(est[2], est[3]));
+            procPts.push(isochorica(est[3], est[0]));
+        } else {
+            procPts.push(adiabatica(est[0], est[1]));
+            procPts.push(isochorica(est[1], est[2]));
+            procPts.push(isobarica(est[2], est[3]));
+            procPts.push(adiabatica(est[3], est[4]));
+            procPts.push(isochorica(est[4], est[0]));
+        }
+
+        const estadosPuntos = est.map(function(e) {
+            return { x: e.v, y: e.P / 1000, label: String(e.num) };
+        });
+
+        return _construirSeriesChart(procPts, estadosPuntos);
+    }
+
+    function generarSeriesTS(resultado) {
+        const est  = resultado.estados;
+        const Cv   = resultado.Cv_J;
+        const Cp   = resultado.Cp_J;
+        const JK   = resultado.JK;
+        const tipo = resultado.tipo_ciclo.toLowerCase();
+        const n    = CHART_N_PUNTOS;
+
+        function adiabatTS(S_val, TA, TB) {
+            return [{ x: S_val, y: TA }, { x: S_val, y: TB }];
+        }
+        function isocTS(S_ini, TA, TB) {
+            const S_fin = S_ini + Cv * Math.log(TB / TA) / JK;
+            const pts = [];
+            for (let i = 0; i <= n; i++) {
+                const S = S_ini + (S_fin - S_ini) * i / n;
+                pts.push({ x: S, y: TA * Math.exp((S - S_ini) * JK / Cv) });
+            }
+            return pts;
+        }
+        function isobTS(S_ini, TA, TB) {
+            const S_fin = S_ini + Cp * Math.log(TB / TA) / JK;
+            const pts = [];
+            for (let i = 0; i <= n; i++) {
+                const S = S_ini + (S_fin - S_ini) * i / n;
+                pts.push({ x: S, y: TA * Math.exp((S - S_ini) * JK / Cp) });
+            }
+            return pts;
+        }
+
+        const Sv = [];
+        const procPts = [];
+
+        if (tipo === 'otto') {
+            Sv[0] = 0;
+            Sv[1] = Sv[0];
+            Sv[2] = Sv[1] + Cv * Math.log(est[2].T / est[1].T) / JK;
+            Sv[3] = Sv[2];
+            procPts.push(adiabatTS(Sv[0], est[0].T, est[1].T));
+            procPts.push(isocTS(Sv[1], est[1].T, est[2].T));
+            procPts.push(adiabatTS(Sv[2], est[2].T, est[3].T));
+            procPts.push(isocTS(Sv[3], est[3].T, est[0].T));
+        } else if (tipo === 'diesel') {
+            Sv[0] = 0;
+            Sv[1] = Sv[0];
+            Sv[2] = Sv[1] + Cp * Math.log(est[2].T / est[1].T) / JK;
+            Sv[3] = Sv[2];
+            procPts.push(adiabatTS(Sv[0], est[0].T, est[1].T));
+            procPts.push(isobTS(Sv[1], est[1].T, est[2].T));
+            procPts.push(adiabatTS(Sv[2], est[2].T, est[3].T));
+            procPts.push(isocTS(Sv[3], est[3].T, est[0].T));
+        } else {
+            Sv[0] = 0;
+            Sv[1] = Sv[0];
+            Sv[2] = Sv[1] + Cv * Math.log(est[2].T / est[1].T) / JK;
+            Sv[3] = Sv[2] + Cp * Math.log(est[3].T / est[2].T) / JK;
+            Sv[4] = Sv[3];
+            procPts.push(adiabatTS(Sv[0], est[0].T, est[1].T));
+            procPts.push(isocTS(Sv[1], est[1].T, est[2].T));
+            procPts.push(isobTS(Sv[2], est[2].T, est[3].T));
+            procPts.push(adiabatTS(Sv[3], est[3].T, est[4].T));
+            procPts.push(isocTS(Sv[4], est[4].T, est[0].T));
+        }
+
+        const estadosPuntos = est.map(function(e, i) {
+            return { x: Sv[i], y: e.T, label: String(e.num) };
+        });
+
+        return _construirSeriesChart(procPts, estadosPuntos);
+    }
+
+    // ── ALERTAS ───────────────────────────────────────────────────────────────
+    function mostrarAlerta(mensaje, tipo) {
+        tipo = tipo || 'warning';
+        const $alerta = $(`<div class="alert alert-${tipo}">${mensaje}</div>`);
+        $('body').append($alerta);
+        setTimeout(function() {
+            $alerta.fadeOut(300, function() { $(this).remove(); });
+        }, 4000);
     }
 });

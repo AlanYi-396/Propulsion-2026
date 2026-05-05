@@ -22,14 +22,14 @@
 <body>
     <div id="app">
         <div class="row">
-            <!-- Panel Izquierdo (30%) -->
+            <!-- Panel Izquierdo (30%) --> 
             <div class="panel left">
                 <!-- Hero Section -->
                 <div class="card hero">
-                    <div>
+                    <div class="hero-img"></div>
+                    <div class="hero-text">
                         <div class="title">Predimensionador de Motores</div>
-                        <div>[Imagen técnica conceptual aquí]</div>
-                        <div class="small">Cálculo de ciclos termodinámicos alternativos</div>
+                        <!--<div class="small">Cálculo de ciclos termodinámicos alternativos</div>-->
                     </div>
                 </div>
 
@@ -117,18 +117,9 @@
 
             <!-- Panel Derecho (70%) -->
             <div class="panel right">
-                <!-- Tabla Estados y Tiempos del Ciclo -->
-                <div class="card shrink">
-                    <div class="head">
-                        Estados y Tiempos del Ciclo
-                        <select id="ciclo-estados">
-                            <option value="otto">Otto</option>
-                            <option value="diesel">Diesel</option>
-                            <option value="sabath">Sabathé</option>
-                        </select>
-                    </div>
-                    <table id="tabla-estados">
-                    </table>
+                <!-- Tabla Estados y Tiempos del Ciclo (cabecera generada por JS dentro de la tabla) -->
+                <div class="card shrink" style="padding: 0;">
+                    <table id="tabla-estados" style="margin: 0;"></table>
                 </div>
 
                 <!-- Gráficos -->
@@ -154,6 +145,10 @@
                             </select>
                         </div>
                         <div class="plot" id="plot-ts"></div>
+                    </div>
+                    <div class="card graph">
+                        <div class="head">η<sub>t</sub> vs Relación de Compresión</div>
+                        <div class="plot" id="plot-eta"></div>
                     </div>
                 </div>
 

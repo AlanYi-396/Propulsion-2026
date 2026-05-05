@@ -156,6 +156,38 @@
 
 ---
 
+### PROMPT 19
+**Solicitud:**
+> Eje X del gráfico T-S: cambiar 'S' por 'ΔS'. Resaltar celda T3 en tabla Resumen si supera 4.800K usando opciones nativas Kendo. Todas las cabeceras de tabla Resumen con subíndices HTML. Hero: usar 'lycoming-engine.jpg' como imagen, título y subtítulo debajo de la imagen, fondo blanco.
+
+**Respuesta:** `ΔS` en eje X del gráfico T-S; `dataBound` en kendoGrid detecta T3>4800K y aplica `background:#fff3cd/color:#856404`; todas las columnas con `headerTemplate` usando `<sub>`; hero reestructurado con `.hero-img` (background-image cover) y `.hero-text` (blanco, padding, borde superior).
+
+---
+
+### PROMPT 20
+**Solicitud:**
+> Aplicar la paleta de colores del tema Lucario de VSCode a toda la aplicación con buen contraste.
+
+**Respuesta:** `general.css` reescrito completo con paleta Lucario: fondo `#1B2B3A`/`#2B3E50`/`#263340`, bordes `#3D5166`, texto `#F8F8F8`/`#B0C4D8`, acento azul `#5C98CD`, amarillo `#E9C062`, verde `#A5C261`, rojo `#CF6A4C`; overrides de Kendo Grid, NumericTextBox, alertas, modal y tabla-estados; charts actualizados con líneas `#5C98CD`, markers `#E9C062` y ejes `#3D5166`/`#B0C4D8`.
+
+---
+
+### PROMPT 21
+**Solicitud:**
+> Reducir panel izquierdo a 20% (ajustar fuentes/espaciado). Sumar el 10% al panel derecho (80%). Agregar gráfico "Rendimiento térmico vs Relación de compresión" (r=1 a 30); ciclo simple muestra 1 curva, Comparativa muestra 3 con leyenda y colores distintos, líneas finas.
+
+**Respuesta:** `.left` 20% con reglas scoped (fuentes 10-11px, paddings compactos, hero 148px); `.right` 80%; 3er gráfico `#plot-eta` (Kendo scatterLine, r 1–30, paso 0.25); `generarCurvasEta` calcula η con parámetros actuales del formulario (T1, k, constantes de combustible); comparativa con 3 series coloreadas (Otto=`#5C98CD`, Diesel=`#A5C261`, Sabathé=`#E9C062`) + leyenda activa; ciclo simple = 1 curva sin leyenda.
+
+---
+
+### PROMPT 22
+**Solicitud:**
+> Resaltado `#eb4c4c` para T>4800K también en tabla de Estados (no solo resumen). Mismo resaltado para P>10.000.000 Pa en tabla de estados. Mover cabecera "Estados y Tiempos..." + dropdown al interior de la tabla como primera fila. Responsividad del formulario izquierdo. Bugfix: ciclo selector no se restauraba al cargar desde historial.
+
+**Respuesta:** `construirHTMLTabla` aplica `style="background:#eb4c4c"` con acceso directo a `e.T` y `e.P`; select `#ciclo-estados` integrado en la fila `<th class="tabla-ciclo-titulo">` en ambos builders (con `selected` dinámico); `.prop('disabled')` movido al DESPUÉS del rebuild de tabla; `limpiarFormulario` idem; `itemHistorial.parametros.ciclo_raw` guarda ciclo raw; `cargarParametrosDelHistorial` restaura `#ciclo-selector` con `ciclo_raw` o mapa inverso; CSS: `min-width:0` + `width:100%` en widget Kendo y `campo-con-unidad`; select en `tabla-ciclo-titulo` estilizado.
+
+---
+
 ## Notas
 - Formato: Solicitud = cita literal del prompt del usuario | Respuesta = resumen máx. 1 línea
 - Ubicación: `PROMPTS.md` en la raíz de `TP1/`

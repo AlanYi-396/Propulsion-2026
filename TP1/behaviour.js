@@ -45,18 +45,29 @@ $(document).ready(function() {
             resizable: true,
             scrollable: false,
             columns: [
-                { field: 'ciclo',      title: 'Ciclo',            width: 70, attributes: { style: 'text-align: left'   } },
-                { field: 't1',         title: 'T₁ [K]',           width: 65, attributes: { style: 'text-align: center' } },
-                { field: 't2',         title: 'T₂ [K]',           width: 65, attributes: { style: 'text-align: center' } },
-                { field: 't3',         title: 'T₃ [K]',           width: 65, attributes: { style: 'text-align: center' } },
-                { field: 't4',         title: 'T₄ [K]',           width: 65, attributes: { style: 'text-align: center' } },
-                { field: 'qin',        title: 'Q_in [kCal/kg]',   width: 95, attributes: { style: 'text-align: center' } },
-                { field: 'qout',       title: 'Q_out [kCal/kg]',  width: 95, attributes: { style: 'text-align: center' } },
-                { field: 'wneto',      title: 'W_neto [kJ/kg]',   width: 90, attributes: { style: 'text-align: center' } },
-                { field: 'eterma',     title: 'η Térmica',        width: 75, attributes: { style: 'text-align: center' } },
-                { field: 'cilindrada', title: 'Cilindrada',       width: 70, attributes: { style: 'text-align: center' } }
+                { field: 'ciclo',      title: 'Ciclo',                                                        width: 70, attributes: { style: 'text-align: left'   } },
+                { field: 't1',         title: 'T₁ [K]',                                                       width: 65, attributes: { style: 'text-align: center' } },
+                { field: 't2',         title: 'T₂ [K]',                                                       width: 65, attributes: { style: 'text-align: center' } },
+                { field: 't3',         headerTemplate: 'T<sub>3</sub> [K]',                                   width: 65, attributes: { style: 'text-align: center' } },
+                { field: 't4',         title: 'T₄ [K]',                                                       width: 65, attributes: { style: 'text-align: center' } },
+                { field: 'qin',        headerTemplate: 'Q<sub>in</sub> [kCal/kg]',                            width: 95, attributes: { style: 'text-align: center' } },
+                { field: 'qout',       headerTemplate: 'Q<sub>out</sub> [kCal/kg]',                           width: 95, attributes: { style: 'text-align: center' } },
+                { field: 'wneto',      headerTemplate: 'W<sub>neto</sub> [kJ/kg]',                            width: 90, attributes: { style: 'text-align: center' } },
+                { field: 'eterma',     headerTemplate: 'η<sub>t</sub>',                                       width: 75, attributes: { style: 'text-align: center' } },
+                { field: 'cilindrada',  headerTemplate: 'V<sub>d</sub> [L]',                                   width: 70,  attributes: { style: 'text-align: center' } },
+                { field: 'disposicion', headerTemplate: 'Disposición',                                          width: 140, attributes: { style: 'text-align: center; font-size: 11px; white-space: nowrap;' } }
             ],
-            dataSource: { data: [] }
+            dataSource: { data: [] },
+            dataBound: function() {
+                const data = this.dataSource.data();
+                const $tbody = $(this.tbody);
+                data.forEach(function(item, idx) {
+                    const raw = parseFloat((item.t3 || '').replace(/\./g, '').replace(',', '.'));
+                    if (raw > 4800) {
+                        $tbody.find('tr').eq(idx).find('td').eq(3).addClass('alerta-t3');
+                    }
+                });
+            }
         });
     }
 
@@ -70,27 +81,31 @@ $(document).ready(function() {
         });
     }
 
-    function construirHTMLTabla(resultado) {
+    function construirHTMLTabla(resultado, cicloKey) {
         const titulo = `CICLO ${resultado.tipo_ciclo.toUpperCase()} IDEAL`;
+        const tipo   = cicloKey || resultado.tipo_ciclo.toLowerCase();
+        const ALERTA = 'background:#eb4c4c;color:#F8F8F8;font-weight:700';
 
         let filas = '';
         resultado.estados.forEach(function(e, i) {
+            const stP = e.P > 10000000 ? ` style="${ALERTA}"` : '';
+            const stT = e.T > 4800     ? ` style="${ALERTA}"` : '';
             filas += `<tr class="fila-estado">
-                <td>${e.num}</td><td>-</td><td>-</td>
-                <td>${fmt(e.P, 2)}</td>
+                <td>${e.num}</td><td colspan="2">-</td>
+                <td${stP}>${fmt(e.P, 2)}</td>
                 <td>${fmt(e.rho, 4)}</td>
                 <td>${fmt(e.v, 6)}</td>
-                <td>${fmt(e.T, 2)}</td>
+                <td${stT}>${fmt(e.T, 2)}</td>
                 <td>${fmt(e.u, 3)}</td>
                 <td>${fmt(e.h, 3)}</td>
-                <td>-</td><td>-</td><td>-</td>
+                <td colspan="3">-</td>
             </tr>`;
 
             if (i < resultado.procesos.length) {
                 const p = resultado.procesos[i];
                 filas += `<tr class="fila-proceso">
                     <td>-</td><td>${p.etapa}</td><td>${p.tiempo}</td>
-                    <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+                    <td colspan="6">-</td>
                     <td>${p.q != null ? fmt(p.q, 3) : '-'}</td>
                     <td>${p.w != null ? fmt(p.w, 2) : '-'}</td>
                     <td>${fmt(p.ds, 4)}</td>
@@ -100,7 +115,16 @@ $(document).ready(function() {
 
         return `
             <thead>
-                <tr><th colspan="12" class="tabla-ciclo-titulo">${titulo}</th></tr>
+                <tr>
+                    <th colspan="12" class="tabla-ciclo-titulo">
+                        Estados y Tiempos del Ciclo — ${titulo}
+                        <select id="ciclo-estados">
+                            <option value="otto"   ${tipo==='otto'   ?'selected':''}>Otto</option>
+                            <option value="diesel" ${tipo==='diesel' ?'selected':''}>Diesel</option>
+                            <option value="sabath" ${tipo==='sabath' ?'selected':''}>Sabathé</option>
+                        </select>
+                    </th>
+                </tr>
                 <tr>
                     <th>ESTADO</th><th>ETAPA</th><th>Tiempo</th>
                     <th>P [Pa]</th><th>ρ [kg/m³]</th><th>v [m³/kg]</th>
@@ -136,21 +160,30 @@ $(document).ready(function() {
         let filas = '';
         for (let i = 1; i <= nEstados; i++) {
             filas += `<tr class="fila-estado">
-                <td>${i}</td><td>-</td><td>-</td>
-                <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+                <td>${i}</td><td colspan="2">-</td>
+                <td colspan="9">-</td>
             </tr>`;
             if (i <= procesos.length) {
                 const p = procesos[i - 1];
                 filas += `<tr class="fila-proceso">
                     <td>-</td><td>${p.etapa}</td><td>${p.tiempo}</td>
-                    <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+                    <td colspan="9">-</td>
                 </tr>`;
             }
         }
 
         return `
             <thead>
-                <tr><th colspan="12" class="tabla-ciclo-titulo">${titulos[ciclo] || titulos.otto}</th></tr>
+                <tr>
+                    <th colspan="12" class="tabla-ciclo-titulo">
+                        Estados y Tiempos del Ciclo — ${titulos[ciclo] || titulos.otto}
+                        <select id="ciclo-estados">
+                            <option value="otto"   ${ciclo==='otto'   ?'selected':''}>Otto</option>
+                            <option value="diesel" ${ciclo==='diesel' ?'selected':''}>Diesel</option>
+                            <option value="sabath" ${ciclo==='sabath' ?'selected':''}>Sabathé</option>
+                        </select>
+                    </th>
+                </tr>
                 <tr>
                     <th>ESTADO</th><th>ETAPA</th><th>Tiempo</th>
                     <th>P [Pa]</th><th>ρ [kg/m³]</th><th>v [m³/kg]</th>
@@ -170,7 +203,7 @@ $(document).ready(function() {
             inicializarTablaEstados(ciclo);
             return;
         }
-        $('#tabla-estados').html(construirHTMLTabla(resultado));
+        $('#tabla-estados').html(construirHTMLTabla(resultado, ciclo));
     }
 
     function actualizarTablaEstados(ciclo) {
@@ -182,20 +215,39 @@ $(document).ready(function() {
     }
 
     // ── TABLA RESUMEN ─────────────────────────────────────────────────────────
+    function calcularDisposicion(cilindrada_L, tipoCiclo) {
+        const tipo = (tipoCiclo || '').toLowerCase();
+        const rbs  = tipo.includes('diesel') ? 1.10 : tipo.includes('sabat') ? 0.90 : 1.25;
+
+        // Busca la cantidad par de cilindros mínima tal que bore ≤ 6"
+        for (let n = 2; n <= 24; n += 2) {
+            const V_cil_mm3 = (cilindrada_L / n) * 1e6;
+            const L_mm = Math.cbrt(4 * V_cil_mm3 / (Math.PI * rbs * rbs));
+            const D_mm = rbs * L_mm;
+            const D_in = D_mm / 25.4;
+            const L_in = L_mm / 25.4;
+            if (D_in <= 6.0) {
+                return `${n}c × ${D_in.toFixed(2)}" × ${L_in.toFixed(2)}"`;
+            }
+        }
+        return '—';
+    }
+
     function cargarTablaResumen(resultado) {
         const r = resultado;
         const T = r.estados;
         const datos = [{
-            ciclo:      r.tipo_ciclo,
-            t1:         fmt(T[0].T, 2),
-            t2:         fmt(T[1].T, 2),
-            t3:         fmt(T[2].T, 2),
-            t4:         fmt(T[3] ? T[3].T : null, 2),
-            qin:        fmt(r.rendimientos.q_in, 3),
-            qout:       fmt(r.rendimientos.q_out, 3),
-            wneto:      fmt(r.rendimientos.w_neto, 2),
-            eterma:     (r.rendimientos.eta_th * 100).toFixed(2) + '%',
-            cilindrada: fmt(r.rendimientos.cilindrada_L, 2) + ' L'
+            ciclo:       r.tipo_ciclo,
+            t1:          fmt(T[0].T, 2),
+            t2:          fmt(T[1].T, 2),
+            t3:          fmt(T[2].T, 2),
+            t4:          fmt(T[3] ? T[3].T : null, 2),
+            qin:         fmt(r.rendimientos.q_in, 3),
+            qout:        fmt(r.rendimientos.q_out, 3),
+            wneto:       fmt(r.rendimientos.w_neto, 2),
+            eterma:      (r.rendimientos.eta_th * 100).toFixed(2) + '%',
+            cilindrada:  fmt(r.rendimientos.cilindrada_L, 2) + ' L',
+            disposicion: calcularDisposicion(r.rendimientos.cilindrada_L, r.tipo_ciclo)
         }];
         const $grid = $('#tabla-resumen').data('kendoGrid');
         if ($grid) $grid.dataSource.data(datos);
@@ -205,16 +257,17 @@ $(document).ready(function() {
         const datos = resultados.map(function(r) {
             const T = r.estados;
             return {
-                ciclo:      r.tipo_ciclo,
-                t1:         fmt(T[0].T, 2),
-                t2:         fmt(T[1].T, 2),
-                t3:         fmt(T[2].T, 2),
-                t4:         fmt(T[3] ? T[3].T : null, 2),
-                qin:        fmt(r.rendimientos.q_in, 3),
-                qout:       fmt(r.rendimientos.q_out, 3),
-                wneto:      fmt(r.rendimientos.w_neto, 2),
-                eterma:     (r.rendimientos.eta_th * 100).toFixed(2) + '%',
-                cilindrada: fmt(r.rendimientos.cilindrada_L, 2) + ' L'
+                ciclo:       r.tipo_ciclo,
+                t1:          fmt(T[0].T, 2),
+                t2:          fmt(T[1].T, 2),
+                t3:          fmt(T[2].T, 2),
+                t4:          fmt(T[3] ? T[3].T : null, 2),
+                qin:         fmt(r.rendimientos.q_in, 3),
+                qout:        fmt(r.rendimientos.q_out, 3),
+                wneto:       fmt(r.rendimientos.w_neto, 2),
+                eterma:      (r.rendimientos.eta_th * 100).toFixed(2) + '%',
+                cilindrada:  fmt(r.rendimientos.cilindrada_L, 2) + ' L',
+                disposicion: calcularDisposicion(r.rendimientos.cilindrada_L, r.tipo_ciclo)
             };
         });
         const $grid = $('#tabla-resumen').data('kendoGrid');
@@ -300,8 +353,8 @@ $(document).ready(function() {
                     resultados.push(res);
                 });
 
-                $('#ciclo-estados').val('otto').prop('disabled', false);
                 cargarTablaEstados('otto', resultadosActuales['otto']);
+                $('#ciclo-estados').prop('disabled', false);
                 cargarTablaResumenComparativa(resultados);
 
                 ['pv', 'ts'].forEach(function(g) {
@@ -313,8 +366,8 @@ $(document).ready(function() {
                 resultadosActuales[ciclo] = resultado;
                 resultados.push(resultado);
 
-                $('#ciclo-estados').val(ciclo).prop('disabled', true);
                 cargarTablaEstados(ciclo, resultado);
+                $('#ciclo-estados').prop('disabled', true);
                 cargarTablaResumen(resultado);
 
                 ['pv', 'ts'].forEach(function(g) {
@@ -327,6 +380,7 @@ $(document).ready(function() {
             const cicloTS = $('#ciclo-ts').val();
             if (resultadosActuales[cicloPV]) renderizarGraficoPV(resultadosActuales[cicloPV]);
             if (resultadosActuales[cicloTS]) renderizarGraficoTS(resultadosActuales[cicloTS]);
+            renderizarGraficoEta(ciclo, parametros);
 
             // ── Historial
             const idHistorial = generarIDHistorial();
@@ -343,7 +397,8 @@ $(document).ready(function() {
                     mezcla_relativa:     parametros.mezlaRelativa,
                     k_aire:              parametros.kAire,
                     rendimiento_mecanico: parametros.rendimientoMecanico,
-                    delta_t_in:          parametros.deltaT
+                    delta_t_in:          parametros.deltaT,
+                    ciclo_raw:           ciclo
                 }
             };
 
@@ -439,12 +494,12 @@ $(document).ready(function() {
         $('#delta-t-in').data('kendoNumericTextBox').value(0);
         $('#potencia').val('');
         $('#altitud').val('');
-        $('#ciclo-estados').prop('disabled', false).val('otto');
         $('#ciclo-pv').prop('disabled', false).val('otto');
         $('#ciclo-ts').prop('disabled', false).val('otto');
         $('#parametros-form input, #parametros-form select').removeClass('input-error');
         resultadosActuales = {};
         inicializarTablaEstados('otto');
+        $('#ciclo-estados').prop('disabled', false); // select vive dentro de la tabla; se activa tras rebuild
         const $grid = $('#tabla-resumen').data('kendoGrid');
         if ($grid) $grid.dataSource.data([]);
         // Limpiar gráficos
@@ -452,6 +507,7 @@ $(document).ready(function() {
             const c = $(sel).data('kendoChart');
             if (c) { c.options.series = []; c.refresh(); }
         });
+        inicializarGraficoEta();
     }
 
     // ── HISTORIAL ─────────────────────────────────────────────────────────────
@@ -579,6 +635,10 @@ $(document).ready(function() {
         const item = historial.find(function(h) { return h.id === itemId; });
         if (!item) return;
 
+        const cicloInverso = { 'Otto': 'otto', 'Diesel': 'diesel', 'Sabathé': 'sabath', 'Comparativa': 'comparacion' };
+        const cicloVal = item.parametros.ciclo_raw || cicloInverso[item.ciclo] || 'otto';
+        $('#ciclo-selector').val(cicloVal);
+
         $('#rpm').data('kendoNumericTextBox').value(item.parametros.rpm);
         $('#potencia').val(item.parametros.potencia);
         $('#unidad-potencia').val(item.parametros.potencia_unidad);
@@ -600,13 +660,42 @@ $(document).ready(function() {
     }
 
     // ── GRÁFICOS P-V y T-S ────────────────────────────────────────────────────
-    const CHART_COLOR_LINEA = '#1e3a5f';
-    const CHART_COLOR_DOT   = '#c0392b';
+    const CHART_COLOR_LINEA = '#5C98CD';   // Lucario blue
+    const CHART_COLOR_DOT   = '#E9C062';   // Lucario yellow
     const CHART_N_PUNTOS    = 40;
 
     function inicializarGraficos() {
         crearGraficoBase('#plot-pv', 'v [m³/kg]', 'P [kPa]', '{0:n3}', '{0:n0}');
-        crearGraficoBase('#plot-ts', 'S [kCal/(kg·K)]', 'T [K]', '{0:n4}', '{0:n0}');
+        crearGraficoBase('#plot-ts', 'ΔS [kCal/(kg·K)]', 'T [K]', '{0:n4}', '{0:n0}');
+        inicializarGraficoEta();
+    }
+
+    function inicializarGraficoEta() {
+        const $el = $('#plot-eta');
+        const inst = $el.data('kendoChart');
+        if (inst) inst.destroy();
+        $el.empty();
+        $el.kendoChart({
+            legend:  { visible: false, position: 'bottom', labels: { color: '#B0C4D8', font: '10px Segoe UI' } },
+            series:  [],
+            xAxis: {
+                title:  { text: 'r (-)', font: '11px Segoe UI', color: '#B0C4D8', margin: { top: 2 } },
+                labels: { font: '10px Segoe UI', format: '{0:n0}', color: '#B0C4D8' },
+                min: 1, max: 30,
+                majorGridLines: { color: '#3D5166' },
+                color: '#3D5166'
+            },
+            yAxis: {
+                title:  { text: 'η [%]', font: '11px Segoe UI', color: '#B0C4D8', margin: { right: 2 } },
+                labels: { font: '10px Segoe UI', format: '{0:n0}', color: '#B0C4D8' },
+                min: 0, max: 100,
+                majorGridLines: { color: '#3D5166' },
+                color: '#3D5166'
+            },
+            tooltip:   { visible: false },
+            chartArea: { background: 'transparent', border: { width: 0 }, margin: 4 },
+            plotArea:  { border: { width: 0 }, margin: { top: 10, right: 10, bottom: 5, left: 5 } }
+        });
     }
 
     function crearGraficoBase(selector, xLabel, yLabel, xFmt, yFmt) {
@@ -618,14 +707,16 @@ $(document).ready(function() {
             legend:  { visible: false },
             series:  [],
             xAxis: {
-                title: { text: xLabel, font: '11px Segoe UI', margin: { top: 2 } },
-                labels: { font: '10px Segoe UI', format: xFmt, rotation: -30 },
-                majorGridLines: { color: '#e8e8e8' }
+                title: { text: xLabel, font: '11px Segoe UI', color: '#B0C4D8', margin: { top: 2 } },
+                labels: { font: '10px Segoe UI', format: xFmt, rotation: -30, color: '#B0C4D8' },
+                majorGridLines: { color: '#3D5166' },
+                color: '#3D5166'
             },
             yAxis: {
-                title: { text: yLabel, font: '11px Segoe UI', margin: { right: 2 } },
-                labels: { font: '10px Segoe UI', format: yFmt },
-                majorGridLines: { color: '#e8e8e8' }
+                title: { text: yLabel, font: '11px Segoe UI', color: '#B0C4D8', margin: { right: 2 } },
+                labels: { font: '10px Segoe UI', format: yFmt, color: '#B0C4D8' },
+                majorGridLines: { color: '#3D5166' },
+                color: '#3D5166'
             },
             tooltip: { visible: false },
             chartArea: { background: 'transparent', border: { width: 0 }, margin: 4 },
@@ -798,6 +889,104 @@ $(document).ready(function() {
         });
 
         return _construirSeriesChart(procPts, estadosPuntos);
+    }
+
+    function renderizarGraficoEta(ciclo, parametros) {
+        const chart = $('#plot-eta').data('kendoChart');
+        if (!chart || !parametros) return;
+
+        const curvas = generarCurvasEta(ciclo, parametros);
+        const esComparativa = ciclo === 'comparacion';
+        const CICLOS_CFG = [
+            { key: 'otto',   name: 'Otto',    color: '#5C98CD' },
+            { key: 'diesel', name: 'Diesel',  color: '#A5C261' },
+            { key: 'sabath', name: 'Sabathé', color: '#E9C062' }
+        ];
+
+        const series = [];
+        CICLOS_CFG.forEach(function(cfg) {
+            if (!curvas[cfg.key] || curvas[cfg.key].length === 0) return;
+            series.push({
+                type: 'scatterLine',
+                name: cfg.name,
+                data: curvas[cfg.key],
+                color: cfg.color,
+                width: 1.5,
+                markers: { visible: false },
+                visibleInLegend: esComparativa,
+                tooltip: { visible: false }
+            });
+        });
+
+        chart.options.series = series;
+        chart.options.legend = {
+            visible: esComparativa,
+            position: 'bottom',
+            labels: { color: '#B0C4D8', font: '10px Segoe UI' }
+        };
+        chart.refresh();
+    }
+
+    function generarCurvasEta(ciclo, parametros) {
+        const atm  = CiclosMotores.calcularCondicionesAtmosfericas(parametros.altitud);
+        const k    = parametros.kAire;
+        const R    = 286.71;
+        const Cv   = R / (k - 1);
+        const Cp   = k * R / (k - 1);
+        const T1   = atm.temperatura_K + (parametros.deltaT || 0);
+
+        const rangR = [];
+        for (let r = 1.05; r <= 30.01; r += 0.25) rangR.push(parseFloat(r.toFixed(4)));
+
+        function etaOtto(r) {
+            return 1 - Math.pow(r, 1 - k);
+        }
+
+        function etaDiesel(r) {
+            const q_in = 42.00e6 * 0.0638;
+            const T2   = T1 * Math.pow(r, k - 1);
+            const rc   = 1 + q_in / (Cp * T2);
+            if (rc <= 1 || rc >= r) return null;
+            return 1 - (Math.pow(rc, k) - 1) / (k * (rc - 1) * Math.pow(r, k - 1));
+        }
+
+        function etaSabathe(r) {
+            const alpha   = 1.5;
+            const q_total = 43.00e6 * 0.068;
+            const T2      = T1 * Math.pow(r, k - 1);
+            const q_vc    = Cv * T2 * (alpha - 1);
+            const q_pc    = Math.max(0, q_total - q_vc);
+            const T3      = T2 * alpha;
+            const beta    = 1 + q_pc / (Cp * T3);
+            const num     = alpha * Math.pow(beta, k) - 1;
+            const den     = (alpha - 1 + alpha * k * (beta - 1)) * Math.pow(r, k - 1);
+            if (den === 0) return null;
+            return 1 - num / den;
+        }
+
+        const incl = {
+            otto:   ciclo === 'otto'   || ciclo === 'comparacion',
+            diesel: ciclo === 'diesel' || ciclo === 'comparacion',
+            sabath: ciclo === 'sabath' || ciclo === 'comparacion'
+        };
+
+        const curvas = {};
+        if (incl.otto) {
+            curvas.otto = rangR
+                .map(r => { const e = etaOtto(r); return e > 0 && e < 1 ? { x: r, y: e * 100 } : null; })
+                .filter(Boolean);
+        }
+        if (incl.diesel) {
+            curvas.diesel = rangR
+                .map(r => { const e = etaDiesel(r); return e !== null && e > 0 && e < 1 ? { x: r, y: e * 100 } : null; })
+                .filter(Boolean);
+        }
+        if (incl.sabath) {
+            curvas.sabath = rangR
+                .map(r => { const e = etaSabathe(r); return e !== null && e > 0 && e < 1 ? { x: r, y: e * 100 } : null; })
+                .filter(Boolean);
+        }
+        return curvas;
     }
 
     // ── ALERTAS ───────────────────────────────────────────────────────────────

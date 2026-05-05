@@ -81,7 +81,7 @@ const CiclosMotores = {
         if (h > 11000) console.warn('Altitud > 11 km; modelo ISA capa troposférica.');
 
         const T   = this.constantes.T_standar - this.constantes.L_gradiente * h;
-        const exp = (this.constantes.g * h) / (this.constantes.R_aire * this.constantes.T_standar);
+        const exp = this.constantes.g / (this.constantes.L_gradiente * this.constantes.R_aire); // ≈ 5.26, constante ISA
         const P   = this.constantes.P_atm_nivel_mar * Math.pow(T / this.constantes.T_standar, exp);
         const rho = P / (this.constantes.R_aire * T);
 

@@ -54,18 +54,69 @@ th, td {
 }
 
 .left {
-    width: 30%;
+    width: 25%;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
 .right {
-    width: 70%;
+    width: 75%;
     display: flex;
     flex-direction: column;
     gap: 10px;
     height: 100%;
+}
+
+/* ── Panel izquierdo: tipografía y espaciado compactos ── */
+.left .card              { padding: 6px; }
+.left .hero              { height: 180px; }
+.left .hero-text         { padding: 4px 6px; }
+.left .title             { font-size: 16px; }
+.left .small             { font-size: 11px; }
+.left .head              { font-size: 11px; }
+.left .form-group        { gap: 2px; }
+.left .form-group label  { font-size: 10px; }
+.left .form-columns      { gap: 3px; }
+.left .inputs            { gap: 3px; }
+.left .form-group input,
+.left .campo-con-unidad input,
+.left .inputs input,
+.left .inputs select     { font-size: 11px; padding: 2px; min-height: 25px; }
+.left .dropdown-unidad   { font-size: 11px; padding: 3px 4px; min-height: 25px; }
+.left #ciclo-selector    { font-size: 11px; padding: 2px; min-height: 25px; }
+.left .btns button       { font-size: 11px; min-width: 60px; padding: 3px 8px; min-height: 25px; }
+.left .k-numeric-wrap    { min-height: 25px !important; }
+.left .k-numeric-wrap .k-input { font-size: 11px !important; padding: 2px !important; min-height: 23px !important; }
+.left #historial-table   { font-size: 11px; }
+.left #historial-table th,
+.left #historial-table td { padding: 4px; }
+
+/* Evita colapso de celdas del grid en panel estrecho */
+.left .form-columns > .form-group { min-width: 0; overflow: hidden; }
+.left .campo-con-unidad input     { min-width: 0; width: 100%; }
+.left .k-widget,
+.left .k-numerictextbox           { width: 100% !important; min-width: 0 !important; }
+
+/* Select dentro de la cabecera de la tabla de estados */
+.tabla-ciclo-titulo #ciclo-estados {
+    background-color: #263340;
+    color: #B0C4D8;
+    border: 1px solid #4A6080;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: normal;
+    margin-left: 10px;
+    cursor: pointer;
+}
+.tabla-ciclo-titulo #ciclo-estados:hover {
+    border-color: #5C98CD;
+    background-color: #344151;
+}
+.tabla-ciclo-titulo #ciclo-estados:disabled {
+    opacity: 0.45;
+    cursor: default;
 }
 
 .card {
@@ -630,6 +681,12 @@ th, td {
 
 .k-grid tbody tr:hover td {
     background-color: #344151 !important;
+}
+
+.k-grid tbody tr td.alerta-t3 {
+    background-color: #eb4c4c !important;
+    color: #F8F8F8 !important;
+    font-weight: 700 !important;
 }
 
 /* Responsive */

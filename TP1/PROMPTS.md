@@ -172,6 +172,22 @@
 
 ---
 
+### PROMPT 21
+**Solicitud:**
+> Reducir panel izquierdo a 20% (ajustar fuentes/espaciado). Sumar el 10% al panel derecho (80%). Agregar gráfico "Rendimiento térmico vs Relación de compresión" (r=1 a 30); ciclo simple muestra 1 curva, Comparativa muestra 3 con leyenda y colores distintos, líneas finas.
+
+**Respuesta:** `.left` 20% con reglas scoped (fuentes 10-11px, paddings compactos, hero 148px); `.right` 80%; 3er gráfico `#plot-eta` (Kendo scatterLine, r 1–30, paso 0.25); `generarCurvasEta` calcula η con parámetros actuales del formulario (T1, k, constantes de combustible); comparativa con 3 series coloreadas (Otto=`#5C98CD`, Diesel=`#A5C261`, Sabathé=`#E9C062`) + leyenda activa; ciclo simple = 1 curva sin leyenda.
+
+---
+
+### PROMPT 22
+**Solicitud:**
+> Resaltado `#eb4c4c` para T>4800K también en tabla de Estados (no solo resumen). Mismo resaltado para P>10.000.000 Pa en tabla de estados. Mover cabecera "Estados y Tiempos..." + dropdown al interior de la tabla como primera fila. Responsividad del formulario izquierdo. Bugfix: ciclo selector no se restauraba al cargar desde historial.
+
+**Respuesta:** `construirHTMLTabla` aplica `style="background:#eb4c4c"` con acceso directo a `e.T` y `e.P`; select `#ciclo-estados` integrado en la fila `<th class="tabla-ciclo-titulo">` en ambos builders (con `selected` dinámico); `.prop('disabled')` movido al DESPUÉS del rebuild de tabla; `limpiarFormulario` idem; `itemHistorial.parametros.ciclo_raw` guarda ciclo raw; `cargarParametrosDelHistorial` restaura `#ciclo-selector` con `ciclo_raw` o mapa inverso; CSS: `min-width:0` + `width:100%` en widget Kendo y `campo-con-unidad`; select en `tabla-ciclo-titulo` estilizado.
+
+---
+
 ## Notas
 - Formato: Solicitud = cita literal del prompt del usuario | Respuesta = resumen máx. 1 línea
 - Ubicación: `PROMPTS.md` en la raíz de `TP1/`

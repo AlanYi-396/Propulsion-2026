@@ -1,0 +1,548 @@
+/* ============================================
+   GENERAL CSS - Calculadora de Motores Pistoneros
+   Tema: Lucario  (#2B3E50 · #1B2B3A · #5C98CD · #E9C062)
+   ============================================ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #1B2B3A;
+    color: #F8F8F8;
+}
+
+button, input, select {
+    font: inherit;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+th, td {
+    border: 1px solid #3D5166;
+    padding: 2px 4px;
+    font-size: 12px;
+    text-align: left;
+    color: #F8F8F8;
+}
+
+/* Contenedor app */
+#app {
+    height: 100vh;
+    padding: 10px;
+}
+
+.row {
+    display: flex;
+    gap: 10px;
+    height: 100%;
+}
+
+.panel {
+    border: 1px solid #3D5166;
+    border-radius: 16px;
+    padding: 12px;
+    overflow: hidden;
+    background-color: #263340;
+}
+
+.left {
+    width: 25%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.right {
+    width: 75%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 100%;
+}
+
+/* ── Panel izquierdo: tipografía y espaciado compactos ── */
+.left .card              { padding: 6px; }
+.left .hero-text         { padding: 4px 6px; }
+.left .title             { font-size: 16px; }
+.left .small             { font-size: 11px; }
+.left .head              { font-size: 11px; }
+.left .form-group        { gap: 2px; }
+.left .form-group label  { font-size: 10px; }
+.left .form-columns      { gap: 3px; }
+.left .inputs            { gap: 3px; }
+.left .form-group input,
+.left .campo-con-unidad input,
+.left .inputs input,
+.left .inputs select     { font-size: 11px; padding: 2px; min-height: 25px; }
+.left .dropdown-unidad   { font-size: 11px; padding: 3px 4px; min-height: 25px; }
+.left .btns button       { font-size: 11px; min-width: 60px; padding: 3px 8px; min-height: 25px; }
+.left .k-numeric-wrap    { min-height: 25px !important; }
+.left .k-numeric-wrap .k-input { font-size: 11px !important; padding: 2px !important; min-height: 23px !important; }
+
+/* Evita colapso de celdas del grid en panel estrecho */
+.left .form-columns > .form-group { min-width: 0; overflow: hidden; }
+.left .campo-con-unidad input     { min-width: 0; width: 100%; }
+.left .k-widget,
+.left .k-numerictextbox           { width: 100% !important; min-width: 0 !important; }
+
+/* Select dentro de la cabecera de la tabla de estados */
+.tabla-ciclo-titulo #ciclo-estados {
+    background-color: #263340;
+    color: #B0C4D8;
+    border: 1px solid #4A6080;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: normal;
+    margin-left: 10px;
+    cursor: pointer;
+}
+.tabla-ciclo-titulo #ciclo-estados:hover {
+    border-color: #5C98CD;
+    background-color: #344151;
+}
+.tabla-ciclo-titulo #ciclo-estados:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.card {
+    border: 1px solid #3D5166;
+    border-radius: 12px;
+    padding: 8px;
+    background-color: #2B3E50;
+}
+
+/* Hero */
+.hero {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+/* Imagen en su aspect ratio natural, al ancho del panel */
+.hero-img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.hero-text {
+    background: #2B3E50;
+    text-align: center;
+    padding: 6px 8px;
+    border-top: 1px solid #3D5166;
+}
+
+.title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #F8F8F8;
+}
+
+.small {
+    font-size: 14px;
+    color: #B0C4D8;
+}
+
+.tiny {
+    font-size: 12px;
+    color: #B0C4D8;
+}
+
+.inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.form-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+}
+
+.form-group.full-width {
+    grid-column: 1 / -1;
+    margin: 5px 0px;
+}
+
+.inputs input,
+.inputs select {
+    padding: 3px;
+    border: 1px solid #3D5166;
+    border-radius: 6px;
+    font-size: 13px;
+    background-color: #1B2B3A;
+    color: #F8F8F8;
+}
+
+.radio-group {
+    display: flex;
+    gap: 12px;
+}
+
+.radio-group label {
+    font-weight: normal;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    color: #B0C4D8;
+}
+
+.btns {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+}
+
+.btns button {
+    padding: 4px 20px;
+    border: 1px solid #3D5166;
+    border-radius: 6px;
+    background: #263340;
+    color: #F8F8F8;
+    cursor: pointer;
+    font-size: 13px;
+    text-transform: uppercase;
+    min-width: 100px;
+    max-width: 160px;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.btns button:hover {
+    background: #344151;
+    border-color: #5C98CD;
+}
+
+.btns .btn-primary {
+    background: #5C98CD;
+    border-color: #4A7DAB;
+    color: #F8F8F8;
+}
+
+.btns .btn-primary:hover {
+    background: #4A7DAB;
+    border-color: #3A6A96;
+}
+
+
+.shrink {
+    overflow: auto;
+}
+
+.graphs {
+    display: flex;
+    gap: 10px;
+    flex: 1;
+    min-height: 0;
+}
+
+.graph {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.plot {
+    flex: 1;
+    border: 1px solid #3D5166;
+    border-radius: 8px;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.head {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #B0C4D8;
+}
+
+.head select {
+    font-size: 12px;
+}
+
+.radio {
+    font-size: 14px;
+}
+
+.range {
+    padding: 0 !important;
+}
+
+.summary {
+    overflow: auto;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: #B0C4D8;
+    font-size: 12px;
+}
+
+.form-group input {
+    padding: 3px;
+    border: 1px solid #3D5166;
+    border-radius: 5px;
+    font-size: 13px;
+    width: 100%;
+    background-color: #1B2B3A;
+    color: #F8F8F8;
+}
+
+.campo-con-unidad {
+    display: flex;
+    gap: 4px;
+}
+
+.campo-con-unidad input {
+    flex: 1;
+    padding: 3px;
+    border: 1px solid #3D5166;
+    border-radius: 6px;
+    font-size: 13px;
+    background-color: #1B2B3A;
+    color: #F8F8F8;
+}
+
+.dropdown-unidad {
+    padding: 6px;
+    border: 1px solid #3D5166;
+    border-radius: 6px;
+    font-size: inherit;
+    background-color: #1B2B3A;
+    color: #B0C4D8;
+    cursor: pointer;
+}
+
+#ciclo-selector {
+    background-color: #1B2B3A;
+    color: #F8F8F8;
+    border: 1px solid #3D5166;
+    border-radius: 6px;
+    padding: 3px;
+    width: 100%;
+}
+
+/* Validación de errores */
+.input-error {
+    border-color: #CF6A4C !important;
+}
+
+/* Alertas — posición fija, esquina superior izquierda, sin alterar el layout */
+.alert {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 9000;
+    min-width: 220px;
+    max-width: 340px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    border-left: 4px solid;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.alert-warning {
+    background-color: #2E2510;
+    color: #E9C062;
+    border-color: #E9C062;
+}
+
+.alert-error {
+    background-color: #2E1510;
+    color: #CF6A4C;
+    border-color: #CF6A4C;
+}
+
+.alert-success {
+    background-color: #192613;
+    color: #A5C261;
+    border-color: #A5C261;
+}
+
+.alert-info {
+    background-color: #152233;
+    color: #5C98CD;
+    border-color: #5C98CD;
+}
+
+/* Tabla de Estados y Tiempos del Ciclo */
+.tabla-ciclo-titulo {
+    background-color: #1B2B3A;
+    font-weight: 700;
+    text-align: center;
+    font-size: 13px;
+    color: #B0C4D8;
+    letter-spacing: 0.04em;
+}
+
+#tabla-estados th {
+    background-color: #1B2B3A;
+    color: #B0C4D8;
+    text-align: center;
+    white-space: nowrap;
+    border-color: #3D5166;
+}
+
+#tabla-estados td {
+    text-align: center;
+    white-space: nowrap;
+    color: #F8F8F8;
+    border-color: #3D5166;
+}
+
+.fila-proceso td {
+    background-color: #263340;
+    font-style: italic;
+}
+
+/* Kendo-like hover para tabla de estados */
+#tabla-estados {
+    border-collapse: collapse;
+}
+
+#tabla-estados tbody tr:hover td {
+    background-color: #344151 !important;
+    cursor: default;
+    transition: background-color 0.1s ease;
+}
+
+/* Kendo NumericTextBox personalización */
+.k-numeric-wrap {
+    font-size: 13px;
+}
+
+.k-numeric-wrap .k-input {
+    padding: 3px;
+    font-size: 13px;
+}
+
+.k-numeric-wrap .k-spinner-button {
+    width: 16px;
+}
+
+/* Dropdowns del panel derecho */
+#ciclo-estados,
+#ciclo-pv,
+#ciclo-ts {
+    border: 1px solid #3D5166;
+    border-radius: 6px;
+    background-color: #1B2B3A;
+    color: #B0C4D8;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-weight: normal;
+    transition: border-color 0.2s, background-color 0.2s;
+    outline: none;
+}
+
+#ciclo-estados:hover,
+#ciclo-pv:hover,
+#ciclo-ts:hover {
+    border-color: #5C98CD;
+    background-color: #263340;
+}
+
+#ciclo-estados:focus,
+#ciclo-pv:focus,
+#ciclo-ts:focus {
+    border-color: #5C98CD;
+    box-shadow: 0 0 0 2px rgba(92, 152, 205, 0.25);
+}
+
+/* ── Overrides de Kendo widgets para tema oscuro ── */
+.k-widget,
+.k-numeric-wrap {
+    background-color: #1B2B3A !important;
+    color: #F8F8F8 !important;
+    border-color: #3D5166 !important;
+}
+
+.k-widget input.k-input,
+.k-numeric-wrap input.k-input {
+    background-color: #1B2B3A !important;
+    color: #F8F8F8 !important;
+}
+
+.k-select,
+.k-link.k-state-selected,
+.k-spinner-increase,
+.k-spinner-decrease {
+    background-color: #263340 !important;
+    border-color: #3D5166 !important;
+    color: #B0C4D8 !important;
+}
+
+/* Kendo Grid */
+.k-grid {
+    border-color: #3D5166 !important;
+    background-color: #2B3E50 !important;
+    color: #F8F8F8 !important;
+}
+
+.k-grid-header,
+.k-grid-header-wrap {
+    background-color: #1B2B3A !important;
+    border-color: #3D5166 !important;
+}
+
+.k-grid-header th.k-header {
+    background-color: #1B2B3A !important;
+    color: #B0C4D8 !important;
+    border-color: #3D5166 !important;
+}
+
+.k-grid tbody tr td {
+    border-color: #3D5166 !important;
+    color: #F8F8F8 !important;
+    background-color: #2B3E50 !important;
+}
+
+.k-grid tbody tr.k-alt td {
+    background-color: #263340 !important;
+}
+
+.k-grid tbody tr:hover td {
+    background-color: #344151 !important;
+}
+
+.k-grid tbody tr td.alerta-t3 {
+    background-color: #eb4c4c !important;
+    color: #F8F8F8 !important;
+    font-weight: 700 !important;
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+    .row {
+        flex-direction: column;
+    }
+
+    .left, .right {
+        width: 100%;
+    }
+}

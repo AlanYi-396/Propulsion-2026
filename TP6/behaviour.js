@@ -1,25 +1,60 @@
 /**
  * BEHAVIOUR.JS
- * Calculadora de Motores Pistoneros - Predimensionamiento Aeronáutico
+ * Calculadora de Turborreactores (ciclo Joule-Brayton real) - Predimensionamiento Aeronáutico
  */
 
 $(document).ready(function() {
 
     // ── VARIABLES GLOBALES ────────────────────────────────────────────────────
-    let resultadosActuales = {};   // almacena el último resultado por ciclo
     let resultadoTurborreactor = null;
 
     const RENDIMIENTOS = ['eta-difusor', 'eta-compresor', 'eta-turbina', 'eta-tobera'];
+    const CAMPOS_NUMERICOS = ['v0', 'v1', 'relacion-compresion', 'dp-cc', 't-lim', 'bpr'].concat(RENDIMIENTOS);
+
+    // Tabla de estados: se declaran antes de inicializarApp(), que la construye.
+    // Ciclo del turborreactor (sin fan) y una fila Total con el empuje (con fan).
+    const KJ_POR_KCAL = 4.184;
+    const ESTADOS_JB  = ['0', '1', '2', '3', '4', 'j'];
+    const PROCESOS_JB = [
+        { etapa: '(0-1)', tiempo: 'Difusor'    },
+        { etapa: '(1-2)', tiempo: 'Compresión' },
+        { etapa: '(2-3)', tiempo: 'Combustión' },
+        { etapa: '(3-4)', tiempo: 'Expansión'  },
+        { etapa: '(4-j)', tiempo: 'Tobera'     }
+    ];
+
+    // Gráficos: se declaran antes de inicializarApp(), que los construye.
+    // Diagrama T-s: un color por componente, estados en amarillo (como TP1).
+    const CHART_COLOR_DOT  = '#E9C062';   // Lucario yellow
+    const CHART_COLOR_ISO  = '#7A8FA6';
+    const CHART_TEXTO      = '#B0C4D8';
+    const CHART_GRILLA     = '#3D5166';
+    const TS_COMPONENTES = [
+        { nombre: 'Difusor',              leyenda: 'Difusor A→01',   color: '#8EC5F0' },
+        { nombre: 'Compresor',            leyenda: 'Compresor 01→02', color: '#5C98CD' },
+        { nombre: 'Cámara de combustión', leyenda: 'Cámara 02→03',    color: '#EB4C4C' },
+        { nombre: 'Turbina',              leyenda: 'Turbina 03→04',   color: '#A5C261' },
+        { nombre: 'Tobera',               leyenda: 'Tobera 04→j',     color: '#E9A33E' }
+    ];
+    // Estados de la tabla (0…4, j) con la nomenclatura del .py (A, 01…04, j)
+    const TS_ETIQUETAS = { '0': 'A', '1': '01', '2': '02', '3': '03', '4': '04', 'j': 'j' };
+    // Gráfico propulsivo (Ej. 5 del .py): curvas adimensionales vs ν = V0/Vj
+    const PROP_CURVAS = [
+        { clave: 'empuje_adimensional', leyenda: 'Eₛ/Vⱼ = 1 − ν',          color: '#5C98CD', op: 'empuje'   },
+        { clave: 'rendimiento_prop',    leyenda: 'ηₚ = 2ν/(1 + ν)',          color: '#A5C261', op: 'eta_p'    },
+        { clave: 'potencia_empuje',     leyenda: 'Pₑ/(ṁ·Vⱼ²) = ν·(1 − ν)',  color: '#EB4C4C', op: 'potencia' }
+    ];
 
     // ── INICIALIZACIÓN ────────────────────────────────────────────────────────
     inicializarApp();
 
     function inicializarApp() {
+        // La tabla vacía y los eventos primero: no dependen de Kendo
+        inicializarTablaEstados();
+        inicializarEventos();
         inicializarKendoControls();
         inicializarKendoGrids();
-        inicializarTablaEstados('otto');
         inicializarGraficos();
-        inicializarEventos();
     }
 
     // ── KENDO CONTROLS ────────────────────────────────────────────────────────
@@ -29,6 +64,7 @@ $(document).ready(function() {
         $('#relacion-compresion').kendoNumericTextBox({ min: 1, decimals: 2, step: 0.5 });
         $('#dp-cc').kendoNumericTextBox({ min: 0, max: 100, decimals: 1, step: 0.5 });
         $('#t-lim').kendoNumericTextBox({ min: 0, decimals: 0, step: 10 });
+        $('#bpr').kendoNumericTextBox({ min: 0, decimals: 2, step: 0.1 });
         RENDIMIENTOS.forEach(function(id) {
             $('#' + id).kendoNumericTextBox({ min: 0, max: 1, decimals: 2, step: 0.05 });
         });
@@ -69,6 +105,8 @@ $(document).ready(function() {
     }
 
     // ── TABLA DE ESTADOS (HTML plano, no kendoGrid) ───────────────────────────
+    // Filas de estado intercaladas con filas de proceso (tiempos del ciclo).
+    // El modelo entrega kPa y kJ; la tabla muestra Pa y kCal como en TP1.
 
     function fmt(n, dec) {
         if (n == null) return '-';
@@ -78,23 +116,43 @@ $(document).ready(function() {
         });
     }
 
-    function construirHTMLTabla(resultado, cicloKey) {
-        const titulo = `CICLO ${resultado.tipo_ciclo.toUpperCase()} IDEAL`;
-        const tipo   = cicloKey || resultado.tipo_ciclo.toLowerCase();
+    function envolverTablaEstados(filas) {
+        return `
+            <thead>
+                <tr>
+                    <th colspan="12" class="tabla-ciclo-titulo">
+                        Estados y Tiempos del Ciclo — CICLO JOULE-BRAYTON (TURBORREACTOR)
+                    </th>
+                </tr>
+                <tr>
+                    <th>ESTADO</th><th>ETAPA</th><th>Tiempo</th>
+                    <th>P [Pa]</th><th>ρ [kg/m³]</th><th>v [m³/kg]</th>
+                    <th>T [K]</th><th>u [kCal/kg]</th><th>h [kCal/kg]</th>
+                    <th>q [kCal/kg]</th><th>w [kJ/kg]</th><th>ΔS [kCal/(kg·K)]</th>
+                </tr>
+            </thead>
+            <tbody>${filas}</tbody>`;
+    }
+
+    function construirHTMLTabla(resultado) {
         const ALERTA = 'background:#eb4c4c;color:#F8F8F8;font-weight:700';
+        const emp = resultado.empuje;
 
         let filas = '';
         resultado.estados.forEach(function(e, i) {
-            const stP = e.P > 10000000 ? ` style="${ALERTA}"` : '';
-            const stT = e.T > 4800     ? ` style="${ALERTA}"` : '';
+            const P_Pa = e.P * 1000;
+            const stP = P_Pa > 10000000 ? ` style="${ALERTA}"` : '';
+            const stT = e.T > 4800      ? ` style="${ALERTA}"` : '';
+            // Como el .py: 0 y j estáticos, 1–4 de remanso. u y h con cp/cv del
+            // fluido de cada estado (aire hasta 2, gases de combustión desde 3)
             filas += `<tr class="fila-estado">
-                <td>${e.num}</td><td colspan="2">-</td>
-                <td${stP}>${fmt(e.P, 2)}</td>
+                <td>${e.num}</td><td colspan="2" title="Fluido: ${e.fluido}">${e.magnitud}</td>
+                <td${stP}>${fmt(P_Pa, 2)}</td>
                 <td>${fmt(e.rho, 4)}</td>
-                <td>${fmt(e.v, 6)}</td>
+                <td>${fmt(1 / e.rho, 6)}</td>
                 <td${stT}>${fmt(e.T, 2)}</td>
-                <td>${fmt(e.u, 3)}</td>
-                <td>${fmt(e.h, 3)}</td>
+                <td>${fmt(e.u / KJ_POR_KCAL, 3)}</td>
+                <td>${fmt(e.h / KJ_POR_KCAL, 3)}</td>
                 <td colspan="3">-</td>
             </tr>`;
 
@@ -103,172 +161,57 @@ $(document).ready(function() {
                 filas += `<tr class="fila-proceso">
                     <td>-</td><td>${p.etapa}</td><td>${p.tiempo}</td>
                     <td colspan="6">-</td>
-                    <td>${p.q != null ? fmt(p.q, 3) : '-'}</td>
+                    <td>${p.q != null ? fmt(p.q / KJ_POR_KCAL, 3) : '-'}</td>
                     <td>${p.w != null ? fmt(p.w, 2) : '-'}</td>
-                    <td>${fmt(p.ds, 4)}</td>
+                    <td>${fmt(p.ds / KJ_POR_KCAL, 4)}</td>
                 </tr>`;
             }
         });
 
-        return `
-            <thead>
-                <tr>
-                    <th colspan="12" class="tabla-ciclo-titulo">
-                        Estados y Tiempos del Ciclo — ${titulo}
-                        <select id="ciclo-estados">
-                            <option value="otto"   ${tipo==='otto'   ?'selected':''}>Otto</option>
-                            <option value="diesel" ${tipo==='diesel' ?'selected':''}>Diesel</option>
-                            <option value="sabath" ${tipo==='sabath' ?'selected':''}>Sabathé</option>
-                        </select>
-                    </th>
-                </tr>
-                <tr>
-                    <th>ESTADO</th><th>ETAPA</th><th>Tiempo</th>
-                    <th>P [Pa]</th><th>ρ [kg/m³]</th><th>v [m³/kg]</th>
-                    <th>T [K]</th><th>u [kCal/kg]</th><th>h [kCal/kg]</th>
-                    <th>q [kCal/kg]</th><th>w [kJ/kg]</th><th>ΔS [kCal/(kg·K)]</th>
-                </tr>
-            </thead>
-            <tbody>${filas}</tbody>`;
+        // Empuje determinado con el fan: E = ṁc·(Vj − V0) + ṁb·(Vjf − V0)
+        filas += `<tr class="fila-proceso">
+            <td>-</td><td colspan="2"><b>Total</b></td>
+            <td colspan="6">BPR = ${fmt(emp.bpr, 2)} · FPR óptimo = ${fmt(emp.fpr, 3)} · ṁ = ${fmt(emp.m_total, 2)} kg/s · E sin fan = ${fmt(emp.E_turborreactor, 1)} N</td>
+            <td>-</td>
+            <td title="Núcleo Ec = ${fmt(emp.Ec, 1)} N + fan Ef = ${fmt(emp.Ef, 1)} N"><b>E = ${fmt(emp.E, 1)} N</b></td>
+            <td>-</td>
+        </tr>`;
+
+        return envolverTablaEstados(filas);
     }
 
-    function construirHTMLTablaVacia(ciclo) {
-        const titulos = {
-            otto:   'CICLO OTTO IDEAL',
-            diesel: 'CICLO DIESEL IDEAL',
-            sabath: 'CICLO SABATHÉ IDEAL'
-        };
-        const procesosOtto = [
-            { etapa: '(1-2)', tiempo: 'Compresión'    },
-            { etapa: '(2-3)', tiempo: 'Combustión'    },
-            { etapa: '(3-4)', tiempo: 'Expansión'     },
-            { etapa: '(4-1)', tiempo: 'Escape'        }
-        ];
-        const procesosSabath = [
-            { etapa: '(1-2)', tiempo: 'Compresión'    },
-            { etapa: '(2-3)', tiempo: 'Combustión VC' },
-            { etapa: '(3-4)', tiempo: 'Combustión PC' },
-            { etapa: '(4-5)', tiempo: 'Expansión'     },
-            { etapa: '(5-1)', tiempo: 'Escape'        }
-        ];
-        const nEstados = ciclo === 'sabath' ? 5 : 4;
-        const procesos = ciclo === 'sabath' ? procesosSabath : procesosOtto;
-
+    function construirHTMLTablaVacia() {
         let filas = '';
-        for (let i = 1; i <= nEstados; i++) {
+        ESTADOS_JB.forEach(function(num, i) {
             filas += `<tr class="fila-estado">
-                <td>${i}</td><td colspan="2">-</td>
+                <td>${num}</td><td colspan="2">-</td>
                 <td colspan="9">-</td>
             </tr>`;
-            if (i <= procesos.length) {
-                const p = procesos[i - 1];
+            if (i < PROCESOS_JB.length) {
+                const p = PROCESOS_JB[i];
                 filas += `<tr class="fila-proceso">
                     <td>-</td><td>${p.etapa}</td><td>${p.tiempo}</td>
                     <td colspan="9">-</td>
                 </tr>`;
             }
-        }
-
-        return `
-            <thead>
-                <tr>
-                    <th colspan="12" class="tabla-ciclo-titulo">
-                        Estados y Tiempos del Ciclo — ${titulos[ciclo] || titulos.otto}
-                        <select id="ciclo-estados">
-                            <option value="otto"   ${ciclo==='otto'   ?'selected':''}>Otto</option>
-                            <option value="diesel" ${ciclo==='diesel' ?'selected':''}>Diesel</option>
-                            <option value="sabath" ${ciclo==='sabath' ?'selected':''}>Sabathé</option>
-                        </select>
-                    </th>
-                </tr>
-                <tr>
-                    <th>ESTADO</th><th>ETAPA</th><th>Tiempo</th>
-                    <th>P [Pa]</th><th>ρ [kg/m³]</th><th>v [m³/kg]</th>
-                    <th>T [K]</th><th>u [kCal/kg]</th><th>h [kCal/kg]</th>
-                    <th>q [kCal/kg]</th><th>w [kJ/kg]</th><th>ΔS [kCal/(kg·K)]</th>
-                </tr>
-            </thead>
-            <tbody>${filas}</tbody>`;
+        });
+        filas += `<tr class="fila-proceso">
+            <td>-</td><td colspan="2"><b>Total</b></td>
+            <td colspan="9">-</td>
+        </tr>`;
+        return envolverTablaEstados(filas);
     }
 
-    function inicializarTablaEstados(ciclo) {
-        $('#tabla-estados').html(construirHTMLTablaVacia(ciclo));
+    function inicializarTablaEstados() {
+        $('#tabla-estados').html(construirHTMLTablaVacia());
     }
 
-    function cargarTablaEstados(ciclo, resultado) {
+    function cargarTablaEstados(resultado) {
         if (!resultado) {
-            inicializarTablaEstados(ciclo);
+            inicializarTablaEstados();
             return;
         }
-        $('#tabla-estados').html(construirHTMLTabla(resultado, ciclo));
-    }
-
-    function actualizarTablaEstados(ciclo) {
-        if (resultadosActuales[ciclo]) {
-            cargarTablaEstados(ciclo, resultadosActuales[ciclo]);
-        } else {
-            inicializarTablaEstados(ciclo);
-        }
-    }
-
-    // ── TABLA RESUMEN ─────────────────────────────────────────────────────────
-    function calcularDisposicion(cilindrada_L, tipoCiclo) {
-        const tipo = (tipoCiclo || '').toLowerCase();
-        const rbs  = tipo.includes('diesel') ? 1.10 : tipo.includes('sabat') ? 0.90 : 1.25;
-
-        // Busca la cantidad par de cilindros mínima tal que bore ≤ 6"
-        for (let n = 2; n <= 24; n += 2) {
-            const V_cil_mm3 = (cilindrada_L / n) * 1e6;
-            const L_mm = Math.cbrt(4 * V_cil_mm3 / (Math.PI * rbs * rbs));
-            const D_mm = rbs * L_mm;
-            const D_in = D_mm / 25.4;
-            const L_in = L_mm / 25.4;
-            if (D_in <= 6.0) {
-                return `${n}c × ${D_in.toFixed(2)}" × ${L_in.toFixed(2)}"`;
-            }
-        }
-        return '—';
-    }
-
-    function cargarTablaResumen(resultado) {
-        const r = resultado;
-        const T = r.estados;
-        const datos = [{
-            ciclo:       r.tipo_ciclo,
-            t1:          fmt(T[0].T, 2),
-            t2:          fmt(T[1].T, 2),
-            t3:          fmt(T[2].T, 2),
-            t4:          fmt(T[3] ? T[3].T : null, 2),
-            qin:         fmt(r.rendimientos.q_in, 3),
-            qout:        fmt(r.rendimientos.q_out, 3),
-            wneto:       fmt(r.rendimientos.w_neto, 2),
-            eterma:      (r.rendimientos.eta_th * 100).toFixed(2) + '%',
-            cilindrada:  fmt(r.rendimientos.cilindrada_L, 2) + ' L',
-            disposicion: calcularDisposicion(r.rendimientos.cilindrada_L, r.tipo_ciclo)
-        }];
-        const $grid = $('#tabla-resumen').data('kendoGrid');
-        if ($grid) $grid.dataSource.data(datos);
-    }
-
-    function cargarTablaResumenComparativa(resultados) {
-        const datos = resultados.map(function(r) {
-            const T = r.estados;
-            return {
-                ciclo:       r.tipo_ciclo,
-                t1:          fmt(T[0].T, 2),
-                t2:          fmt(T[1].T, 2),
-                t3:          fmt(T[2].T, 2),
-                t4:          fmt(T[3] ? T[3].T : null, 2),
-                qin:         fmt(r.rendimientos.q_in, 3),
-                qout:        fmt(r.rendimientos.q_out, 3),
-                wneto:       fmt(r.rendimientos.w_neto, 2),
-                eterma:      (r.rendimientos.eta_th * 100).toFixed(2) + '%',
-                cilindrada:  fmt(r.rendimientos.cilindrada_L, 2) + ' L',
-                disposicion: calcularDisposicion(r.rendimientos.cilindrada_L, r.tipo_ciclo)
-            };
-        });
-        const $grid = $('#tabla-resumen').data('kendoGrid');
-        if ($grid) $grid.dataSource.data(datos);
+        $('#tabla-estados').html(construirHTMLTabla(resultado));
     }
 
     // ── EVENTOS ───────────────────────────────────────────────────────────────
@@ -282,25 +225,11 @@ $(document).ready(function() {
             limpiarFormulario();
         });
 
-        $(document).on('change', '#ciclo-estados', function() {
-            actualizarTablaEstados($(this).val());
-        });
-
-        $(document).on('change', '#ciclo-pv', function() {
-            const c = $(this).val();
-            if (resultadosActuales[c]) renderizarGraficoPV(resultadosActuales[c]);
-        });
-
-        $(document).on('change', '#ciclo-ts', function() {
-            const c = $(this).val();
-            if (resultadosActuales[c]) renderizarGraficoTS(resultadosActuales[c]);
-        });
-
         $(window).on('resize', function() {
-            const cPV = $('#plot-pv').data('kendoChart');
-            const cTS = $('#plot-ts').data('kendoChart');
-            if (cPV) cPV.resize();
-            if (cTS) cTS.resize();
+            ['#plot-ts', '#plot-prop'].forEach(function(sel) {
+                const chart = $(sel).data('kendoChart');
+                if (chart) chart.resize();
+            });
         });
 
         // Quitar borde de error al escribir
@@ -323,8 +252,14 @@ $(document).ready(function() {
             }
 
             resultadoTurborreactor = CicloJouleBrayton.calcular('turborreactor', parametros);
-            // TODO: volcar el resultado en las tablas y gráficas de salida
-            console.log('Turborreactor:', resultadoTurborreactor);
+            cargarTablaEstados(resultadoTurborreactor);
+            renderizarGraficoTS(resultadoTurborreactor);
+            renderizarGraficoPropulsivo(resultadoTurborreactor);
+            // TODO: resumen del ciclo
+
+            resultadoTurborreactor.advertencias.forEach(function(msg) {
+                mostrarAlerta(msg, 'warning');
+            });
             mostrarAlerta('Cálculo completado.', 'success');
 
         } catch (error) {
@@ -344,15 +279,16 @@ $(document).ready(function() {
                 valor: convertirANumero($('#altitud')),
                 unidad: $('#unidad-altitud').val()
             },
-            potencia: {
-                valor: convertirANumero($('#potencia')),
-                unidad: $('#unidad-potencia').val()
+            caudal_sl: {
+                valor: convertirANumero($('#caudal')),
+                unidad: $('#unidad-caudal').val()
             },
             V0:            valorNumerico('v0'),
             V1:            valorNumerico('v1'),
             rc:            valorNumerico('relacion-compresion'),
             dp_cc:         valorNumerico('dp-cc'),
             T3:            valorNumerico('t-lim'),
+            bpr:           valorNumerico('bpr'),
             eta_difusor:   valorNumerico('eta-difusor'),
             eta_compresor: valorNumerico('eta-compresor'),
             eta_turbina:   valorNumerico('eta-turbina'),
@@ -369,20 +305,20 @@ $(document).ready(function() {
     function validarParametros(p) {
         if (p.h_vuelo.valor === null || p.h_vuelo.valor < 0)
             return marcarError('#altitud', 'Altitud: valor inválido o negativo.');
-        if (p.potencia.valor === null || p.potencia.valor <= 0)
-            return marcarError('#potencia', 'Potencia: debe ser un número positivo.');
-        if (p.V0 === null || p.V0 <= 0)
-            return marcarError('#v0', 'V0: debe ser un número positivo.');
+        if (p.caudal_sl.valor === null || p.caudal_sl.valor <= 0)
+            return marcarError('#caudal', 'Caudal de aire SL: debe ser un número positivo.');
+        if (p.V0 === null || p.V0 < 0)
+            return marcarError('#v0', 'V0: debe ser mayor o igual a 0 (0 = despegue estático).');
         if (p.V1 === null || p.V1 <= 0)
             return marcarError('#v1', 'V1: debe ser un número positivo.');
-        if (p.V1 > p.V0)
-            return marcarError('#v1', 'V1 debe ser ≤ V0: el difusor desacelera la corriente.');
         if (p.rc === null || p.rc <= 1)
             return marcarError('#relacion-compresion', 'Relación de Compresión: debe ser mayor a 1.');
         if (p.dp_cc === null || p.dp_cc < 0 || p.dp_cc >= 100)
             return marcarError('#dp-cc', 'Δp cámara: debe estar entre 0 y 100 %.');
         if (p.T3 === null || p.T3 <= 0)
             return marcarError('#t-lim', 'T límite: debe ser un número positivo.');
+        if (p.bpr === null || p.bpr < 0)
+            return marcarError('#bpr', 'BPR: debe ser mayor o igual a 0 (0 = turborreactor puro).');
 
         const nombres = {
             'eta-difusor':   'Rendimiento del difusor',
@@ -406,6 +342,9 @@ $(document).ready(function() {
             valor = valor.replace(/\./g, '').replace(',', '.');
         } else if (valor.includes(',') && !valor.includes('.')) {
             valor = valor.replace(',', '.');
+        } else if (/^-?\d{1,3}(\.\d{3})+$/.test(valor)) {
+            // Solo puntos en grupos de 3 → separador de miles (es-AR): 4.900 = 4900
+            valor = valor.replace(/\./g, '');
         }
         const n = parseFloat(valor);
         return isNaN(n) ? null : n;
@@ -414,356 +353,244 @@ $(document).ready(function() {
     // ── FORMULARIO ────────────────────────────────────────────────────────────
     function limpiarFormulario() {
         $('#parametros-form')[0].reset();
-        ['v0', 'v1', 'relacion-compresion', 'dp-cc', 't-lim'].concat(RENDIMIENTOS).forEach(function(id) {
+        CAMPOS_NUMERICOS.forEach(function(id) {
             $('#' + id).data('kendoNumericTextBox').value(null);
         });
-        $('#potencia').val('');
+        $('#caudal').val('');
         $('#altitud').val('');
-        $('#ciclo-pv').prop('disabled', false).val('otto');
-        $('#ciclo-ts').prop('disabled', false).val('otto');
         $('#parametros-form input, #parametros-form select').removeClass('input-error');
-        resultadosActuales = {};
         resultadoTurborreactor = null;
-        inicializarTablaEstados('otto');
-        $('#ciclo-estados').prop('disabled', false); // select vive dentro de la tabla; se activa tras rebuild
+        inicializarTablaEstados();
         const $grid = $('#tabla-resumen').data('kendoGrid');
         if ($grid) $grid.dataSource.data([]);
-        // Limpiar gráficos
-        ['#plot-pv', '#plot-ts'].forEach(function(sel) {
-            const c = $(sel).data('kendoChart');
-            if (c) { c.options.series = []; c.refresh(); }
-        });
-        inicializarGraficoEta();
+        inicializarGraficos();
     }
 
-    // ── GRÁFICOS P-V y T-S ────────────────────────────────────────────────────
-    const CHART_COLOR_LINEA = '#5C98CD';   // Lucario blue
-    const CHART_COLOR_DOT   = '#E9C062';   // Lucario yellow
-    const CHART_N_PUNTOS    = 40;
-
+    // ── GRÁFICOS ──────────────────────────────────────────────────────────────
+    // Diagrama T-s del turborreactor real (sin fan), como el Ej. 5 del .py:
+    // un color por componente, estados en amarillo (como TP1) e isobaras punteadas.
     function inicializarGraficos() {
-        crearGraficoBase('#plot-pv', 'v [m³/kg]', 'P [kPa]', '{0:n3}', '{0:n0}');
-        crearGraficoBase('#plot-ts', 'ΔS [kCal/(kg·K)]', 'T [K]', '{0:n4}', '{0:n0}');
-        inicializarGraficoEta();
+        inicializarGraficoTS();
+        inicializarGraficoPropulsivo();
     }
 
-    function inicializarGraficoEta() {
-        const $el = $('#plot-eta');
+    function inicializarGraficoTS() {
+        const $el = $('#plot-ts');
         const inst = $el.data('kendoChart');
         if (inst) inst.destroy();
         $el.empty();
         $el.kendoChart({
-            legend:  { visible: false, position: 'bottom', labels: { color: '#B0C4D8', font: '10px Segoe UI' } },
-            series:  [],
+            legend: {
+                visible: true,
+                position: 'bottom',
+                labels: { font: '10px Segoe UI', color: CHART_TEXTO }
+            },
+            // Serie vacía del tipo correcto: sin ella Kendo dibuja sus ejes por defecto
+            series: [{ type: 'scatterLine', data: [], visibleInLegend: false }],
             xAxis: {
-                title:  { text: 'r (-)', font: '11px Segoe UI', color: '#B0C4D8', margin: { top: 2 } },
-                labels: { font: '10px Segoe UI', format: '{0:n0}', color: '#B0C4D8' },
-                min: 1, max: 30,
-                majorGridLines: { color: '#3D5166' },
-                color: '#3D5166'
+                title: { text: 's − sA [kJ/(kg·K)]', font: '11px Segoe UI', color: CHART_TEXTO, margin: { top: 2 } },
+                labels: { font: '10px Segoe UI', format: '{0:n1}', color: CHART_TEXTO },
+                min: 0, max: 1.4, majorUnit: 0.2,  // rango vacío; al calcular se ajusta a los datos
+                majorGridLines: { color: CHART_GRILLA },
+                color: CHART_GRILLA,
+                axisCrossingValue: -1000        // eje T siempre a la izquierda
             },
             yAxis: {
-                title:  { text: 'η [%]', font: '11px Segoe UI', color: '#B0C4D8', margin: { right: 2 } },
-                labels: { font: '10px Segoe UI', format: '{0:n0}', color: '#B0C4D8' },
-                min: 0, max: 100,
-                majorGridLines: { color: '#3D5166' },
-                color: '#3D5166'
-            },
-            tooltip:   { visible: false },
-            chartArea: { background: 'transparent', border: { width: 0 }, margin: 4 },
-            plotArea:  { border: { width: 0 }, margin: { top: 10, right: 10, bottom: 5, left: 5 } }
-        });
-    }
-
-    function crearGraficoBase(selector, xLabel, yLabel, xFmt, yFmt) {
-        const $el = $(selector);
-        const inst = $el.data('kendoChart');
-        if (inst) inst.destroy();
-        $el.empty();
-        $el.kendoChart({
-            legend:  { visible: false },
-            series:  [],
-            xAxis: {
-                title: { text: xLabel, font: '11px Segoe UI', color: '#B0C4D8', margin: { top: 2 } },
-                labels: { font: '10px Segoe UI', format: xFmt, rotation: -30, color: '#B0C4D8' },
-                majorGridLines: { color: '#3D5166' },
-                color: '#3D5166'
-            },
-            yAxis: {
-                title: { text: yLabel, font: '11px Segoe UI', color: '#B0C4D8', margin: { right: 2 } },
-                labels: { font: '10px Segoe UI', format: yFmt, color: '#B0C4D8' },
-                majorGridLines: { color: '#3D5166' },
-                color: '#3D5166'
+                title: { text: 'T [K]', font: '11px Segoe UI', color: CHART_TEXTO, margin: { right: 2 } },
+                labels: { font: '10px Segoe UI', format: '{0:n0}', color: CHART_TEXTO },
+                min: 0, max: 1400, majorUnit: 200,
+                majorGridLines: { color: CHART_GRILLA },
+                color: CHART_GRILLA,
+                axisCrossingValue: -1000        // eje s siempre abajo
             },
             tooltip: { visible: false },
             chartArea: { background: 'transparent', border: { width: 0 }, margin: 4 },
-            plotArea:  { border: { width: 0 }, margin: { top: 10, right: 10, bottom: 5, left: 5 } }
+            plotArea:  { border: { width: 0 }, margin: { top: 10, right: 16, bottom: 5, left: 5 } }
         });
-    }
-
-    function renderizarGraficoPV(resultado) {
-        const chart = $('#plot-pv').data('kendoChart');
-        if (!chart || !resultado) return;
-        chart.options.series = generarSeriesPV(resultado);
-        chart.refresh();
     }
 
     function renderizarGraficoTS(resultado) {
         const chart = $('#plot-ts').data('kendoChart');
         if (!chart || !resultado) return;
-        chart.options.series = generarSeriesTS(resultado);
+
+        const series = [];
+
+        // Isobaras de referencia (punteadas)
+        resultado.curvas.isobaras.forEach(function(iso) {
+            series.push({
+                type: 'scatterLine', data: iso.puntos,
+                color: CHART_COLOR_ISO, width: 1, dashType: 'dot',
+                markers: { visible: false }, tooltip: { visible: false },
+                visibleInLegend: false
+            });
+        });
+
+        // Procesos: un color por componente
+        TS_COMPONENTES.forEach(function(comp) {
+            const curva = resultado.curvas.ts.find(function(c) { return c.nombre === comp.nombre; });
+            if (!curva) return;
+            series.push({
+                type: 'scatterLine', name: comp.leyenda, data: curva.puntos,
+                color: comp.color, width: 2.5,
+                markers: { visible: false }, tooltip: { visible: false }
+            });
+        });
+
+        // Estados A … j
+        resultado.estados.forEach(function(e) {
+            series.push({
+                type: 'scatter',
+                name: TS_ETIQUETAS[e.num] || e.num,
+                data: [{ x: e.s, y: e.T }],
+                color: CHART_COLOR_DOT,
+                markers: { type: 'circle', size: 9, background: CHART_COLOR_DOT, border: { color: '#fff', width: 2 } },
+                labels: {
+                    // A debajo: en despegue estático (V0 = 0) A y 01 casi coinciden
+                    visible: true, position: e.num === '0' ? 'below' : 'right', template: '#= series.name #',
+                    font: '11px Segoe UI', color: '#F8F8F8', background: 'transparent'
+                },
+                tooltip: {
+                    visible: true,
+                    template: 'Estado #= series.name # (' + e.magnitud.toLowerCase() + ')<br/>' +
+                              'T = #= kendo.toString(value.y, "n1") # K<br/>' +
+                              's − s<sub>A</sub> = #= kendo.toString(value.x, "n4") # kJ/(kg·K)'
+                },
+                visibleInLegend: false
+            });
+        });
+
+        // Rango de ejes a partir de las curvas, redondeado a valores de la grilla
+        const xs = [], ys = [];
+        series.forEach(function(se) { se.data.forEach(function(pt) { xs.push(pt.x); ys.push(pt.y); }); });
+        const PASO_S = 0.2;
+        chart.options.xAxis.min = Math.floor(Math.min.apply(null, xs) / PASO_S) * PASO_S;
+        chart.options.xAxis.max = Math.ceil(Math.max.apply(null, xs) / PASO_S) * PASO_S;
+        chart.options.xAxis.majorUnit = PASO_S;
+        chart.options.yAxis.min = Math.floor((Math.min.apply(null, ys) - 50) / 100) * 100;
+        chart.options.yAxis.max = Math.ceil(Math.max.apply(null, ys) / 100) * 100;
+        chart.options.yAxis.majorUnit = 100;
+
+        chart.options.series = series;
         chart.refresh();
     }
 
-    function _construirSeriesChart(procPts, estadosPuntos) {
+    // Empuje, rendimiento propulsivo y potencia de empuje vs ν = V0/Vj.
+    // Al inicio solo se dibujan los ejes vacíos; curvas, puntos notables y punto
+    // de operación salen del resultado de "Calcular" (resultado.curvas).
+    function inicializarGraficoPropulsivo() {
+        const $el = $('#plot-prop');
+        const inst = $el.data('kendoChart');
+        if (inst) inst.destroy();
+        $el.empty();
+        $el.kendoChart({
+            legend: {
+                visible: true,
+                position: 'bottom',
+                labels: { font: '11px Segoe UI', color: CHART_TEXTO }
+            },
+            // Serie vacía del tipo correcto: sin ella Kendo dibuja sus ejes por defecto
+            series: [{ type: 'scatterLine', data: [], visibleInLegend: false }],
+            xAxis: {
+                title: { text: 'ν = V₀/Vⱼ', font: '11px Segoe UI', color: CHART_TEXTO, margin: { top: 2 } },
+                labels: { font: '10px Segoe UI', format: '{0:n1}', color: CHART_TEXTO },
+                min: 0, max: 1, majorUnit: 0.2,
+                majorGridLines: { color: CHART_GRILLA },
+                color: CHART_GRILLA
+            },
+            yAxis: {
+                title: { text: 'Magnitudes adimensionales', font: '11px Segoe UI', color: CHART_TEXTO, margin: { right: 2 } },
+                labels: { font: '10px Segoe UI', format: '{0:n1}', color: CHART_TEXTO },
+                min: 0, max: 1.1, majorUnit: 0.2,
+                majorGridLines: { color: CHART_GRILLA },
+                color: CHART_GRILLA
+            },
+            tooltip: { visible: false },
+            chartArea: { background: 'transparent', border: { width: 0 }, margin: 4 },
+            plotArea:  { border: { width: 0 }, margin: { top: 10, right: 16, bottom: 5, left: 5 } }
+        });
+    }
+
+    // Puntos notables leídos de las curvas calculadas (no fijados de antemano)
+    function puntosNotables(curvas) {
+        const E   = curvas.empuje_adimensional;
+        const eta = curvas.rendimiento_prop;
+        const pot = curvas.potencia_empuje;
+        const potMax = pot.reduce(function(a, b) { return b.y > a.y ? b : a; });
+        const fin    = E[E.length - 1];
+        return [
+            { punto: E[0],             color: '#5C98CD', pos: 'right',
+              texto: 'Punto fijo: empuje máximo, ηₚ = ' + fmt(eta[0].y, 0) },
+            { punto: potMax,           color: '#EB4C4C', pos: 'above',
+              texto: 'Máx. potencia de empuje (ν = ' + fmt(potMax.x, 1) + ')' },
+            { punto: eta[eta.length - 1], color: '#A5C261', pos: 'below', texto: '' },
+            { punto: fin,              color: '#F8F8F8', pos: 'left',  texto: '' },
+            // Anotación sin marcador, dentro del área (como en la referencia)
+            { punto: { x: 0.74, y: 0.47 }, color: 'transparent', pos: 'right', oculto: true,
+              texto: 'V₀ → Vⱼ: ηₚ → ' + fmt(eta[eta.length - 1].y, 0) + ', empuje → ' + fmt(fin.y, 0) }
+        ];
+    }
+
+    function renderizarGraficoPropulsivo(resultado) {
+        inicializarGraficoPropulsivo();
+        const chart = $('#plot-prop').data('kendoChart');
+        if (!chart || !resultado) return;
+
+        const curvas = resultado.curvas.propulsivas;
+        const po = resultado.curvas.punto_operativo;
+        const nu = fmt(po.x, 3);
+        const vj = fmt(resultado.magnitudes.Vj, 1);
         const series = [];
-        procPts.forEach(function(pts) {
+
+        // Curvas del cálculo
+        PROP_CURVAS.forEach(function(c) {
             series.push({
-                type: 'scatterLine',
-                data: pts,
-                color: CHART_COLOR_LINEA,
-                width: 2,
-                markers: { visible: false },
+                type: 'scatterLine', name: c.leyenda, data: curvas[c.clave],
+                color: c.color, width: 2.5,
+                markers: { visible: false }, tooltip: { visible: false }
+            });
+        });
+
+        // Puntos notables con su anotación
+        puntosNotables(curvas).forEach(function(n) {
+            series.push({
+                type: 'scatter', data: [n.punto],
+                color: n.color,
+                markers: n.oculto ? { visible: false }
+                                  : { type: 'circle', size: 8, background: n.color, border: { color: n.color, width: 1 } },
+                labels: {
+                    visible: n.texto !== '', position: n.pos, template: n.texto,
+                    font: '10px Segoe UI', color: CHART_TEXTO, background: 'transparent'
+                },
                 tooltip: { visible: false },
                 visibleInLegend: false
             });
         });
-        estadosPuntos.forEach(function(ep) {
+
+        // Línea vertical del punto de operación (turborreactor sin fan)
+        series.push({
+            type: 'scatterLine', name: 'Operación: ν = ' + nu,
+            data: [{ x: po.x, y: 0 }, { x: po.x, y: 1.1 }],
+            color: CHART_COLOR_DOT, width: 1.5, dashType: 'dash',
+            markers: { visible: false }, tooltip: { visible: false }
+        });
+
+        // El punto de operación sobre cada curva
+        PROP_CURVAS.forEach(function(c) {
             series.push({
-                type: 'scatter',
-                name: ep.label,
-                data: [{ x: ep.x, y: ep.y }],
+                type: 'scatter', data: [{ x: po.x, y: po[c.op] }],
                 color: CHART_COLOR_DOT,
-                markers: {
-                    type: 'circle', size: 9,
-                    background: CHART_COLOR_DOT,
-                    border: { color: '#fff', width: 2 }
-                },
+                markers: { type: 'circle', size: 9, background: CHART_COLOR_DOT, border: { color: '#fff', width: 2 } },
                 tooltip: {
                     visible: true,
-                    template: 'Estado #= series.name #'
+                    template: c.leyenda + '<br/>ν = V₀/Vⱼ = ' + nu + ' (Vⱼ = ' + vj + ' m/s)<br/>' +
+                              'valor = #= kendo.toString(value.y, "n3") #'
                 },
                 visibleInLegend: false
             });
         });
-        return series;
-    }
-
-    function generarSeriesPV(resultado) {
-        const est  = resultado.estados;
-        const k    = resultado.k_aire;
-        const tipo = resultado.tipo_ciclo.toLowerCase();
-        const n    = CHART_N_PUNTOS;
-
-        function adiabatica(eA, eB) {
-            const C = eA.P * Math.pow(eA.v, k);
-            const pts = [];
-            for (let i = 0; i <= n; i++) {
-                const v = eA.v + (eB.v - eA.v) * i / n;
-                pts.push({ x: v, y: C / Math.pow(v, k) / 1000 });
-            }
-            return pts;
-        }
-        function isochorica(eA, eB) {
-            return [{ x: eA.v, y: eA.P / 1000 }, { x: eB.v, y: eB.P / 1000 }];
-        }
-        function isobarica(eA, eB) {
-            return [{ x: eA.v, y: eA.P / 1000 }, { x: eB.v, y: eB.P / 1000 }];
-        }
-
-        const procPts = [];
-        if (tipo === 'otto') {
-            procPts.push(adiabatica(est[0], est[1]));
-            procPts.push(isochorica(est[1], est[2]));
-            procPts.push(adiabatica(est[2], est[3]));
-            procPts.push(isochorica(est[3], est[0]));
-        } else if (tipo === 'diesel') {
-            procPts.push(adiabatica(est[0], est[1]));
-            procPts.push(isobarica(est[1], est[2]));
-            procPts.push(adiabatica(est[2], est[3]));
-            procPts.push(isochorica(est[3], est[0]));
-        } else {
-            procPts.push(adiabatica(est[0], est[1]));
-            procPts.push(isochorica(est[1], est[2]));
-            procPts.push(isobarica(est[2], est[3]));
-            procPts.push(adiabatica(est[3], est[4]));
-            procPts.push(isochorica(est[4], est[0]));
-        }
-
-        const estadosPuntos = est.map(function(e) {
-            return { x: e.v, y: e.P / 1000, label: String(e.num) };
-        });
-
-        return _construirSeriesChart(procPts, estadosPuntos);
-    }
-
-    function generarSeriesTS(resultado) {
-        const est  = resultado.estados;
-        const Cv   = resultado.Cv_J;
-        const Cp   = resultado.Cp_J;
-        const JK   = resultado.JK;
-        const tipo = resultado.tipo_ciclo.toLowerCase();
-        const n    = CHART_N_PUNTOS;
-
-        function adiabatTS(S_val, TA, TB) {
-            return [{ x: S_val, y: TA }, { x: S_val, y: TB }];
-        }
-        function isocTS(S_ini, TA, TB) {
-            const S_fin = S_ini + Cv * Math.log(TB / TA) / JK;
-            const pts = [];
-            for (let i = 0; i <= n; i++) {
-                const S = S_ini + (S_fin - S_ini) * i / n;
-                pts.push({ x: S, y: TA * Math.exp((S - S_ini) * JK / Cv) });
-            }
-            return pts;
-        }
-        function isobTS(S_ini, TA, TB) {
-            const S_fin = S_ini + Cp * Math.log(TB / TA) / JK;
-            const pts = [];
-            for (let i = 0; i <= n; i++) {
-                const S = S_ini + (S_fin - S_ini) * i / n;
-                pts.push({ x: S, y: TA * Math.exp((S - S_ini) * JK / Cp) });
-            }
-            return pts;
-        }
-
-        const Sv = [];
-        const procPts = [];
-
-        if (tipo === 'otto') {
-            Sv[0] = 0;
-            Sv[1] = Sv[0];
-            Sv[2] = Sv[1] + Cv * Math.log(est[2].T / est[1].T) / JK;
-            Sv[3] = Sv[2];
-            procPts.push(adiabatTS(Sv[0], est[0].T, est[1].T));
-            procPts.push(isocTS(Sv[1], est[1].T, est[2].T));
-            procPts.push(adiabatTS(Sv[2], est[2].T, est[3].T));
-            procPts.push(isocTS(Sv[3], est[3].T, est[0].T));
-        } else if (tipo === 'diesel') {
-            Sv[0] = 0;
-            Sv[1] = Sv[0];
-            Sv[2] = Sv[1] + Cp * Math.log(est[2].T / est[1].T) / JK;
-            Sv[3] = Sv[2];
-            procPts.push(adiabatTS(Sv[0], est[0].T, est[1].T));
-            procPts.push(isobTS(Sv[1], est[1].T, est[2].T));
-            procPts.push(adiabatTS(Sv[2], est[2].T, est[3].T));
-            procPts.push(isocTS(Sv[3], est[3].T, est[0].T));
-        } else {
-            Sv[0] = 0;
-            Sv[1] = Sv[0];
-            Sv[2] = Sv[1] + Cv * Math.log(est[2].T / est[1].T) / JK;
-            Sv[3] = Sv[2] + Cp * Math.log(est[3].T / est[2].T) / JK;
-            Sv[4] = Sv[3];
-            procPts.push(adiabatTS(Sv[0], est[0].T, est[1].T));
-            procPts.push(isocTS(Sv[1], est[1].T, est[2].T));
-            procPts.push(isobTS(Sv[2], est[2].T, est[3].T));
-            procPts.push(adiabatTS(Sv[3], est[3].T, est[4].T));
-            procPts.push(isocTS(Sv[4], est[4].T, est[0].T));
-        }
-
-        const estadosPuntos = est.map(function(e, i) {
-            return { x: Sv[i], y: e.T, label: String(e.num) };
-        });
-
-        return _construirSeriesChart(procPts, estadosPuntos);
-    }
-
-    function renderizarGraficoEta(ciclo, parametros) {
-        const chart = $('#plot-eta').data('kendoChart');
-        if (!chart || !parametros) return;
-
-        const curvas = generarCurvasEta(ciclo, parametros);
-        const esComparativa = ciclo === 'comparacion';
-        const CICLOS_CFG = [
-            { key: 'otto',   name: 'Otto',    color: '#5C98CD' },
-            { key: 'diesel', name: 'Diesel',  color: '#A5C261' },
-            { key: 'sabath', name: 'Sabathé', color: '#E9C062' }
-        ];
-
-        const series = [];
-        CICLOS_CFG.forEach(function(cfg) {
-            if (!curvas[cfg.key] || curvas[cfg.key].length === 0) return;
-            series.push({
-                type: 'scatterLine',
-                name: cfg.name,
-                data: curvas[cfg.key],
-                color: cfg.color,
-                width: 1.5,
-                markers: { visible: false },
-                visibleInLegend: esComparativa,
-                tooltip: { visible: false }
-            });
-        });
 
         chart.options.series = series;
-        chart.options.legend = {
-            visible: esComparativa,
-            position: 'bottom',
-            labels: { color: '#B0C4D8', font: '10px Segoe UI' }
-        };
         chart.refresh();
-    }
-
-    function generarCurvasEta(ciclo, parametros) {
-        const atm  = CiclosMotores.calcularCondicionesAtmosfericas(parametros.altitud);
-        const k    = parametros.kAire;
-        const R    = 286.71;
-        const Cv   = R / (k - 1);
-        const Cp   = k * R / (k - 1);
-        const T1   = atm.temperatura_K + (parametros.deltaT || 0);
-
-        const rangR = [];
-        for (let r = 1.05; r <= 30.01; r += 0.25) rangR.push(parseFloat(r.toFixed(4)));
-
-        function etaOtto(r) {
-            return 1 - Math.pow(r, 1 - k);
-        }
-
-        function etaDiesel(r) {
-            const q_in = 42.00e6 * 0.0638;
-            const T2   = T1 * Math.pow(r, k - 1);
-            const rc   = 1 + q_in / (Cp * T2);
-            if (rc <= 1 || rc >= r) return null;
-            return 1 - (Math.pow(rc, k) - 1) / (k * (rc - 1) * Math.pow(r, k - 1));
-        }
-
-        function etaSabathe(r) {
-            const alpha   = 1.5;
-            const q_total = 43.00e6 * 0.068;
-            const T2      = T1 * Math.pow(r, k - 1);
-            const q_vc    = Cv * T2 * (alpha - 1);
-            const q_pc    = Math.max(0, q_total - q_vc);
-            const T3      = T2 * alpha;
-            const beta    = 1 + q_pc / (Cp * T3);
-            const num     = alpha * Math.pow(beta, k) - 1;
-            const den     = (alpha - 1 + alpha * k * (beta - 1)) * Math.pow(r, k - 1);
-            if (den === 0) return null;
-            return 1 - num / den;
-        }
-
-        const incl = {
-            otto:   ciclo === 'otto'   || ciclo === 'comparacion',
-            diesel: ciclo === 'diesel' || ciclo === 'comparacion',
-            sabath: ciclo === 'sabath' || ciclo === 'comparacion'
-        };
-
-        const curvas = {};
-        if (incl.otto) {
-            curvas.otto = rangR
-                .map(r => { const e = etaOtto(r); return e > 0 && e < 1 ? { x: r, y: e * 100 } : null; })
-                .filter(Boolean);
-        }
-        if (incl.diesel) {
-            curvas.diesel = rangR
-                .map(r => { const e = etaDiesel(r); return e !== null && e > 0 && e < 1 ? { x: r, y: e * 100 } : null; })
-                .filter(Boolean);
-        }
-        if (incl.sabath) {
-            curvas.sabath = rangR
-                .map(r => { const e = etaSabathe(r); return e !== null && e > 0 && e < 1 ? { x: r, y: e * 100 } : null; })
-                .filter(Boolean);
-        }
-        return curvas;
     }
 
     // ── ALERTAS ───────────────────────────────────────────────────────────────

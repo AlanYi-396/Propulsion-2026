@@ -31,6 +31,12 @@ const CicloJouleBrayton = {
         gamma: 1.4,         // —         — exponente adiabático (cp/cv)
         R:     287.05,      // J/(kg·K)  — constante particular del aire
 
+        // ── GASES DE COMBUSTIÓN (aguas abajo de la cámara) ────────────────────
+        // Valores medios para productos de combustión de queroseno entre ~800 y
+        // 1.300 K (Saravanamuttoo, Gas Turbine Theory): R = cp·(γ−1)/γ ≈ 287 J/(kg·K)
+        cp_gas:    1.148,   // kJ/(kg·K)
+        gamma_gas: 1.333,   // —
+
         prop_O2: 0.236,     // —         — fracción másica de O₂ en aire (ídem TP1)
 
         // ── ATMÓSFERA ESTÁNDAR (ISA, troposfera — mismo modelo que TP1) ───────
@@ -73,27 +79,30 @@ const CicloJouleBrayton = {
             T5:      1400.0  // K — temperatura a la salida del postcombustor
         },
 
-        // Ejercicio 5 — turborreactor real de 1 eje
+        // Ejercicio 5 — turborreactor real; el fan (BPR) solo interviene en el empuje.
+        // Valores por defecto: motor de referencia P&WC JT15D-1A, despegue estático a nivel del mar ISA
         turborreactor: {
             // ── Entradas por pantalla
-            h_vuelo:       4900.0,  // m     — altitud (o { valor, unidad })
-            V0:            250.0,   // m/s   — velocidad de corriente libre (estado 0)
-            rc:            8.00,    // —     — relación de compresión po2/po1
+            h_vuelo:       0.0,     // m     — altitud: nivel del mar (o { valor, unidad })
+            V0:            0.0,     // m/s   — velocidad de corriente libre (0 = despegue estático)
+            rc:            10.0,    // —     — relación de compresión del núcleo po2/po1
             V1:            150.0,   // m/s   — velocidad a la entrada del compresor
             dp_cc:         4.0,     // %     — pérdida de presión total en cámara
-            T3:            1150,    // K     — T límite: entrada a turbina (límite metalúrgico)
+            T3:            1200,    // K     — T límite: entrada a turbina (límite metalúrgico)
             eta_difusor:   0.92,
-            eta_compresor: 0.85,
-            eta_turbina:   0.91,
+            eta_compresor: 0.80,
+            eta_turbina:   0.88,
             eta_tobera:    0.95,
-            potencia:      null,    // W     — obligatoria (o { valor, unidad: 'w'|'kw'|'hp' })
+            bpr:           3.3,     // —     — relación de bypass ṁb/ṁc (0 = turborreactor puro)
+            caudal_sl:     34.0,    // kg/s  — caudal de aire total a nivel del mar (dato del fabricante;
+                                    //         o { valor, unidad: 'kg/s'|'lb/s' }); JT15D-1A: 75 lb/s
 
-            // ── Parámetros fijos (valores por defecto del .py)
-            eta_combustion: 0.97,     // —     — fracción de Hc liberada en la cámara
+            // ── Parámetros fijos
+            eta_combustion: 0.97,     // —     — fracción de Hc liberada en la cámara (.py)
             eta_mecanico:   1.00,     // —     — transmisión turbina → compresor (cojinetes)
-            tipo_potencia:  'empuje', // 'empuje' (E·V0) | 'eje' (ṁ·wC) | 'chorro' (ΔEc)
+            eta_fan:        0.85,     // —     — rendimiento isentrópico típico de un fan
 
-            v_min: 0.01, v_max: 1.0, n: 100  // barrido de V0/Vj
+            v_min: 0.0, v_max: 1.0, n: 101  // barrido de ν = V0/Vj (0 = punto fijo)
         }
     },
 
@@ -160,8 +169,11 @@ const CicloJouleBrayton = {
     },
     _ds: function(Ta, Tb, pa, pb) {
         // Gibbs: ds = cp·ln(Tb/Ta) − R·ln(pb/pa)   [kJ/(kg·K)]
-        return this.constantes.cp_kj * Math.log(Tb / Ta)
-             - (this.constantes.R / 1000) * Math.log(pb / pa);
+        // Con R = cp·(k−1)/k para que las isentrópicas (p ∝ T^(k/(k−1))) den ds = 0;
+        // cp = 1.005 y R = 287.05 no cumplen exactamente cp = k·R/(k−1).
+        const cp = this.constantes.cp_kj;
+        return cp * Math.log(Tb / Ta)
+             - cp * this._m(this.constantes.gamma) * Math.log(pb / pa);
     },
     _volumen: function(P_kPa, T) {
         return this.constantes.R * T / (P_kPa * 1000);
@@ -363,193 +375,289 @@ const CicloJouleBrayton = {
         };
     },
 
-    // ─── EJ. 5: TURBORREACTOR REAL (1 EJE) ─────────────────────────────────────
-    // Estados (estáticos T, P y de remanso To, Po):
-    //   0  Corriente libre (ISA a h_vuelo, velocidad V0)
-    //   1  Salida difusor / entrada compresor (velocidad V1)
-    //   2  Salida compresor
-    //   3  Salida cámara / entrada turbina (T3 = límite metalúrgico)
-    //   4  Salida turbina / entrada tobera
-    //   j  Salida tobera (expansión adaptada: pj = p0)
-    // Hipótesis: 1 eje → (1+f)·wT·ηm = wC; gas ideal con cp y γ constantes;
-    // procesos adiabáticos salvo la cámara; velocidad despreciable en 2, 3 y 4
-    // (estático ≈ remanso); combustible n-cetano C₁₆H₃₄.
+    // ─── EJ. 5: TURBORREACTOR REAL + EMPUJE CON FAN ────────────────────────────
+    // Ciclo del turborreactor (Ejercicio 5 de EjercicioFinal.py), estación por estación:
+    //   0  Atmósfera (ISA a h_vuelo; magnitudes estáticas T0, p0)
+    //   1  Salida difusor / entrada compresor   ┐
+    //   2  Salida compresor                      │ magnitudes de remanso
+    //   3  Salida cámara / entrada turbina (T3)  │ (To, po)
+    //   4  Salida turbina / entrada tobera       ┘
+    //   j  Salida tobera (estática, expansión adaptada hasta p0)
+    // Propiedades: aire (cp, γ) hasta el compresor; gases de combustión
+    // (cp_gas, γ_gas) en cámara, turbina y tobera.
+    // Hipótesis del .py: 1 eje (la turbina entrega exactamente wC), caudal de
+    // gases ≈ caudal de aire. Este ciclo (sin fan) alimenta la tabla y las gráficas.
     //
-    // La potencia fija el caudal de aire ṁa según 'tipo_potencia':
-    //   'empuje' → W = E·V0          (potencia de empuje)
-    //   'eje'    → W = ṁa·wC         (potencia absorbida por el compresor)
-    //   'chorro' → W = ΔEc del chorro (potencia útil del ciclo)
+    // Empuje: se determina con un fan de relación de bypass BPR (turbofán de
+    // flujos separados). La turbina del núcleo acciona compresor y fan
+    // (wT = wC + BPR·wF) y el FPR es el que maximiza el empuje. Con BPR = 0
+    // coincide con el empuje del turborreactor.
+    //   E = ṁc·(Vj − V0) + ṁb·(Vjf − V0)
+    // Caudal: se ingresa el caudal de aire total a nivel del mar (dato del fabricante)
+    // y se lleva a la condición de vuelo con el caudal corregido constante:
+    //   ṁ = ṁ_SL·δ1/√θ1,  δ1 = po1/101,325 kPa,  θ1 = To1/288,15 K
+    //   ṁc = ṁ/(1 + BPR) (núcleo),  ṁb = BPR·ṁc (bypass)
     turborreactor: function(parametros) {
-        const p   = this._params('turborreactor', parametros);
-        const c   = this.constantes;
-        const cp  = c.cp_kj;       // kJ/(kg·K)
-        const cpJ = c.cp_j;        // J/(kg·K)
-        const k   = c.gamma;
-        const m   = this._m(k);    // (k-1)/k
-        const km  = 1 / m;         // k/(k-1) = 3.5
-        const R   = c.R;
+        const p    = this._params('turborreactor', parametros);
+        const c    = this.constantes;
+        const cpJ  = c.cp_j;                        // J/(kg·K) — aire
+        const R    = c.R;
+        const B    = p.bpr;
 
-        const W = this._potenciaW(p.potencia);
-        this._validarTurborreactor(p, W);
+        // Aire (difusor, compresor, fan) y gases de combustión (cámara, turbina, tobera)
+        const aire = { cp: c.cp_kj,  m: this._m(c.gamma) };
+        const gas  = { cp: c.cp_gas, m: this._m(c.gamma_gas) };
+        // km = k/(k−1); cv = cp − R, con R = cp·(k−1)/k
+        aire.km = 1 / aire.m;   aire.cv = aire.cp * (1 - aire.m);
+        gas.km  = 1 / gas.m;    gas.cv  = gas.cp  * (1 - gas.m);
+        // ds = cp·ln(Tb/Ta) − R·ln(pb/pa), con R = cp·(k−1)/k (isentrópicas → ds = 0)
+        const ds = (prop, Ta, Tb, pa, pb) =>
+            prop.cp * Math.log(Tb / Ta) - prop.cp * prop.m * Math.log(pb / pa);
+
+        const m_sl = this._caudalKgS(p.caudal_sl);
+        this._validarTurborreactor(p, m_sl);
 
         // ── Combustible: n-cetano
         const comb = this._estequiometria();
 
-        // ── Estado 0: corriente libre (ISA)
+        // ── Estado 0: atmósfera (ISA)
         const atm = this.calcularCondicionesAtmosfericas(p.h_vuelo);
         const T0  = atm.temperatura_K;
         const p0  = atm.presion_kPa;
-        const To0 = T0 + p.V0 * p.V0 / (2 * cpJ);
-        const po0 = p0 * Math.pow(To0 / T0, km);
 
-        // ── Estado 1: el difusor frena de V0 a V1 (To1 = To0, adiabático)
-        //    ηd = (T1s − T0)/(T1 − T0): solo ηd·ΔEc se recupera como presión
-        const T1  = T0 + (p.V0 * p.V0 - p.V1 * p.V1) / (2 * cpJ);
-        const T1s = T0 + p.eta_difusor * (T1 - T0);
-        const p1  = p0 * Math.pow(T1s / T0, km);
-        const To1 = To0;
-        const po1 = p1 * Math.pow(To1 / T1, km);
+        // ── Estado 1: toma de aire — lleva la corriente de V0 a V1 (To1 = T0 + V0²/2cp)
+        //    Difusión (V1 ≤ V0, vuelo):      ηd = (T1s − T0)/(T1 − T0) → solo ηd·ΔEc se recupera
+        //    Aceleración (V1 > V0, p. ej. despegue estático V0 = 0):
+        //                                    ηd = (T0 − T1)/(T0 − T1s) → po1 < p0 (pérdida)
+        const To1 = T0 + p.V0 * p.V0 / (2 * cpJ);
+        const T1  = To1 - p.V1 * p.V1 / (2 * cpJ);             // estática a V1
+        const T1s = p.V1 <= p.V0
+            ? T0 + p.eta_difusor * (T1 - T0)
+            : T0 - (T0 - T1) / p.eta_difusor;
+        const p1  = p0 * Math.pow(T1s / T0, aire.km);           // estática a V1
+        const po1 = p1 * Math.pow(To1 / T1, aire.km);           // = p0·(1 + ηd·(To1/T0 − 1))^3.5 si V1 = 0
 
         // ── Estado 2: compresor (penalizado por ηc)
-        const po2 = p.rc * po1;
-        const To2 = To1 * (1 + (Math.pow(p.rc, m) - 1) / p.eta_compresor);
-        const wC  = cp * (To2 - To1);                  // kJ/kg aire
+        const po2         = p.rc * po1;
+        const dTreal_comp = To1 * (Math.pow(p.rc, aire.m) - 1) / p.eta_compresor;
+        const wC          = aire.cp * dTreal_comp;              // kJ/kg
+        const To2         = To1 + dTreal_comp;
 
-        // ── Estado 3: cámara de combustión
-        //    ṁa·cp·To2 + ηcomb·ṁf·Hc = (ṁa + ṁf)·cp·To3   →   f = ṁf/ṁa
+        // ── Estado 3: cámara (pérdida de carga Δpcc y rendimiento de combustión)
+        //    Entra aire a To2 y salen gases a To3: q = cp_gas·To3 − cp·To2
         const To3 = p.T3;
         const po3 = (1 - p.dp_cc / 100) * po2;
-        if (To3 <= To2) {
-            throw new Error(`T3 (${To3} K) debe superar la salida del compresor (To2 = ${To2.toFixed(1)} K).`);
+        const q_in = gas.cp * To3 - aire.cp * To2;              // kJ/kg — calor aportado
+        if (!(To3 > To2) || !(q_in > 0)) {
+            throw new Error(`T límite (${To3} K) debe superar la salida del compresor (To2 = ${To2.toFixed(1)} K).`);
         }
-        const f = cp * (To3 - To2) / (p.eta_combustion * c.cetano_Hc - cp * To3);
+        const f = q_in / (p.eta_combustion * c.cetano_Hc);      // kg comb / kg aire
         if (f > comb.f_est) {
-            throw new Error(`Dosado f = ${f.toFixed(4)} supera el estequiométrico (${comb.f_est.toFixed(4)}); reducir T3.`);
+            throw new Error(`Dosado f = ${f.toFixed(4)} supera el estequiométrico (${comb.f_est.toFixed(4)}); reducir T límite.`);
         }
 
-        // ── Estado 4: turbina — entrega exactamente lo que consume el compresor
-        const wT   = wC / ((1 + f) * p.eta_mecanico);  // kJ/kg gas
-        const To4  = To3 - wT / cp;
-        const To4s = To3 - (To3 - To4) / p.eta_turbina;
-        const po4  = po3 * Math.pow(To4s / To3, km);
-        if (!(To4s > 0) || !(po4 > p0)) {
-            throw new Error('La turbina no deja salto de presión para la tobera; aumentar T3 o revisar RC y rendimientos.');
-        }
+        // ── Turbina (gases): entrega w [kJ/kg núcleo]; null si no deja salto para la tobera
+        const turbina = function(w) {
+            const dT   = w / gas.cp;
+            const To4  = To3 - dT;
+            const base = 1 - (dT / p.eta_turbina) / To3;
+            if (!(base > 0)) return null;
+            const po4 = po3 * Math.pow(base, gas.km);
+            return po4 > p0 ? { To4, po4 } : null;
+        };
+        // ── Tobera adaptada (pj = p0), penalizada por ηtob
+        const tobera = function(prop, To, po) {
+            const Ts = To * Math.pow(p0 / po, prop.m);
+            const T  = To - p.eta_tobera * (To - Ts);
+            return { T, V: Math.sqrt(2 * prop.cp * 1000 * (To - T)) };
+        };
 
-        // ── Estado j: tobera adaptada (pj = p0), penalizada por ηtob
-        const pj  = p0;
-        const Tjs = To4 * Math.pow(pj / po4, m);
-        const Tj  = To4 - p.eta_tobera * (To4 - Tjs);
-        const Vj  = Math.sqrt(2 * cpJ * (To4 - Tj));
-        const Toj = To4;
-        const poj = pj * Math.pow(Toj / Tj, km);
-        // Si po4/p0 supera ((k+1)/2)^(k/(k-1)) ≈ 1.893, una tobera convergente se
-        // bloquea (M = 1 en la garganta): la expansión adaptada exige tobera C-D.
-        const rel_critica      = Math.pow((k + 1) / 2, km);
+        // ════ CICLO DEL TURBORREACTOR (sin fan): tabla y gráficas ════
+        const wT = wC / p.eta_mecanico;                         // kJ/kg
+        const t4 = turbina(wT);
+        if (!t4) {
+            throw new Error('La turbina no deja salto de presión para la tobera; aumentar T límite o revisar RC y rendimientos.');
+        }
+        const To4 = t4.To4, po4 = t4.po4;
+        const tj  = tobera(gas, To4, po4);
+        const Tj  = tj.T, Vj = tj.V, pj = p0;
+
+        // Si po4/p0 supera ((k+1)/2)^(k/(k-1)) ≈ 1.85 (gases), una tobera convergente
+        // se bloquea (M = 1 en la garganta): la expansión adaptada exige tobera C-D.
+        const rel_critica      = Math.pow((c.gamma_gas + 1) / 2, gas.km);
         const tobera_bloqueada = po4 / pj > rel_critica;
 
-        // ── Actuaciones específicas (por kg/s de aire)
-        const E_esp = (1 + f) * Vj - p.V0;                          // N/(kg/s)
-        const dEc   = ((1 + f) * Vj * Vj - p.V0 * p.V0) / 2;        // J/kg aire
-        const q_f   = f * c.cetano_Hc * 1000;                       // J/kg aire
-        const eta_t = dEc / q_f;                                    // térmico
-        const eta_p = E_esp * p.V0 / dEc;                           // propulsivo
-        const eta_o = eta_t * eta_p;                                // global
-
-        // ── Caudales a partir de la potencia
-        const w_ref = { empuje: E_esp * p.V0, eje: wC * 1000, chorro: dEc }[p.tipo_potencia];
-        if (!(w_ref > 0)) {
-            throw new Error('El motor no entrega potencia neta con estos parámetros (empuje ≤ 0).');
-        }
-        const ma = W / w_ref;          // kg/s aire
-        const mf = f * ma;             // kg/s combustible
-        const mg = ma + mf;            // kg/s gases
-        const E  = E_esp * ma;         // N
-        const TSFC = mf / E;           // kg/(N·s)
-
-        // ── Entropías relativas (s0 = 0), sobre magnitudes de remanso
+        // ── Entropías relativas (s0 = 0)
         const s0 = 0.0;
-        const s1 = s0 + this._ds(To0, To1, po0, po1);
-        const s2 = s1 + this._ds(To1, To2, po1, po2);
-        const s3 = s2 + this._ds(To2, To3, po2, po3);
-        const s4 = s3 + this._ds(To3, To4, po3, po4);
-        const sj = s4 + this._ds(To4, Toj, po4, poj);
+        const s1 = s0 + ds(aire, T0,  To1, p0,  po1);
+        const s2 = s1 + ds(aire, To1, To2, po1, po2);
+        const s3 = s2 + ds(gas,  To2, To3, po2, po3);           // aporte de calor, con cp de gases
+        const s4 = s3 + ds(gas,  To3, To4, po3, po4);
+        const sj = s4 + ds(gas,  To4, Tj,  po4, pj);
 
-        // ── Estados: velocidad null → estático ≈ remanso
-        const estado = (num, nombre, T, P, To, Po, V, s, caudal) => {
-            const rho = P * 1000 / (R * T);
-            return { num, nombre, T, P, To, Po, V, rho, s,
-                     A: V ? caudal / (rho * V) : null };   // área de paso [m²]
-        };
+        // ── Estados como en el .py: 0 y j estáticos, 1–4 de remanso
+        const estado = (num, nombre, magnitud, prop, T, P, s) => ({
+            num, nombre, magnitud, T, P, s,
+            rho: P * 1000 / (R * T),
+            u: prop.cv * T,                                     // kJ/kg
+            h: prop.cp * T,                                     // kJ/kg
+            fluido: prop === gas ? 'gases' : 'aire'
+        });
         const estados = [
-            estado('0', 'Corriente libre', T0,  p0,  To0, po0, p.V0, s0, ma),
-            estado('1', 'Entrada compr.',  T1,  p1,  To1, po1, p.V1, s1, ma),
-            estado('2', 'Salida compr.',   To2, po2, To2, po2, null, s2, ma),
-            estado('3', 'Entrada turbina', To3, po3, To3, po3, null, s3, mg),
-            estado('4', 'Salida turbina',  To4, po4, To4, po4, null, s4, mg),
-            estado('j', 'Salida tobera',   Tj,  pj,  Toj, poj, Vj,   sj, mg)
+            estado('0', 'Atmósfera',       'Estática', aire, T0,  p0,  s0),
+            estado('1', 'Entrada compr.',  'Remanso',  aire, To1, po1, s1),
+            estado('2', 'Salida compr.',   'Remanso',  aire, To2, po2, s2),
+            estado('3', 'Entrada turbina', 'Remanso',  gas,  To3, po3, s3),
+            estado('4', 'Salida turbina',  'Remanso',  gas,  To4, po4, s4),
+            estado('j', 'Salida tobera',   'Estática', gas,  Tj,  pj,  sj)
         ];
 
-        // ── Intercambios por proceso [kJ/kg aire]
+        // ── Caudal en la condición de vuelo: caudal corregido constante (ṁ·√θ1/δ1)
+        const delta1  = po1 / (c.P_atm_nivel_mar / 1000);
+        const theta1  = To1 / c.T_standar;
+        const m_total = m_sl * delta1 / Math.sqrt(theta1);     // kg/s — aire total
+        const mc = m_total / (1 + B);                           // kg/s — núcleo
+        const mf = f * mc;                                      // kg/s combustible
+        const E_tr = mc * (Vj - p.V0);                          // N — turborreactor sin fan
+
+        // ════ EMPUJE CON FAN (turbofán de flujos separados) ════
+        const conFan = function(fpr) {
+            const pof = fpr * po1;
+            const Tof = To1 * (1 + (Math.pow(fpr, aire.m) - 1) / p.eta_fan);
+            const wF  = aire.cp * (Tof - To1);                  // kJ/kg de bypass
+            const t   = turbina((wC + B * wF) / p.eta_mecanico);
+            if (!t || !(pof > p0)) return null;
+            const jc = tobera(gas,  t.To4, t.po4);              // tobera caliente
+            const jf = tobera(aire, Tof, pof);                  // tobera fría
+            const E_esp = (jc.V - p.V0) + B * (jf.V - p.V0);    // N por kg/s de núcleo
+            return { fpr, wF, To4: t.To4, Vj: jc.V, Vjf: jf.V, Tjf: jf.T, E_esp };
+        };
+        let op = null;
+        if (B > 0) {
+            // FPR óptimo: barrido grueso y refinamiento alrededor del máximo
+            const barrer = (a, b, paso) => {
+                for (let fpr = a; fpr <= b; fpr += paso) {
+                    const r = conFan(fpr);
+                    if (r && (!op || r.E_esp > op.E_esp)) op = r;
+                }
+            };
+            barrer(1.005, p.rc, 0.005);
+            if (op) barrer(Math.max(1.0001, op.fpr - 0.005), op.fpr + 0.005, 0.0001);
+            if (!op) {
+                throw new Error('La turbina no puede accionar compresor y fan: reducir BPR o RC, o aumentar T límite.');
+            }
+        } else {
+            op = { fpr: 1, wF: 0, To4, Vj, Vjf: p.V0, Tjf: T0, E_esp: Vj - p.V0 };
+        }
+        if (!(op.E_esp > 0)) {
+            throw new Error('El motor no produce empuje con estos parámetros.');
+        }
+        const mb = B * mc;                                      // kg/s bypass
+        const Ec = mc * (op.Vj - p.V0);                         // N — tobera caliente
+        const Ef = mb * (op.Vjf - p.V0);                        // N — tobera fría
+        const E  = Ec + Ef;                                     // N — empuje neto
+        const TSFC = mf / E;                                    // kg/(N·s)
+
+        const P_chorros = mc * (op.Vj * op.Vj - p.V0 * p.V0) / 2
+                        + mb * (op.Vjf * op.Vjf - p.V0 * p.V0) / 2;  // W
+        const eta_t = P_chorros / (mf * c.cetano_Hc * 1000);    // térmico
+        const eta_p = E * p.V0 / P_chorros;                     // propulsivo
+        const eta_o = eta_t * eta_p;                            // global
+
+        const empuje = {
+            bpr: B, fpr: op.fpr, wF: op.wF,
+            To4: op.To4, Vj: op.Vj, Vjf: op.Vjf,                // núcleo del turbofán
+            mc, mb, m_total: mc + mb,
+            P_turbina: mc * (wC + B * op.wF) / p.eta_mecanico * 1000,   // W — acciona compresor y fan
+            Ec, Ef, E,
+            E_turborreactor: E_tr,                              // referencia sin fan
+            TSFC, TSFC_h: TSFC * 3600,
+            eta_t, eta_p, eta_o,
+            A0: p.V0 > 0 ? (mc + mb) * R * T0 / (p0 * 1000 * p.V0) : null  // captación total [m²]
+        };
+
+        // ── Intercambios por proceso del turborreactor [kJ/kg]
         const procesos = [
-            { etapa: '(0-1)', tiempo: 'Difusor',    q: null,                       w: null,           ds: s1 - s0 },
-            { etapa: '(1-2)', tiempo: 'Compresor',  q: null,                       w: -wC,            ds: s2 - s1 },
-            { etapa: '(2-3)', tiempo: 'Combustión', q: p.eta_combustion * q_f / 1000, w: null,        ds: s3 - s2 },
-            { etapa: '(3-4)', tiempo: 'Turbina',    q: null,                       w: (1 + f) * wT,   ds: s4 - s3 },
-            { etapa: '(4-j)', tiempo: 'Tobera',     q: null,                       w: null,           ds: sj - s4 }
+            { etapa: '(0-1)', tiempo: 'Difusor',    q: null, w: null, ds: s1 - s0 },
+            { etapa: '(1-2)', tiempo: 'Compresión', q: null, w: -wC,  ds: s2 - s1 },
+            { etapa: '(2-3)', tiempo: 'Combustión', q: q_in, w: null, ds: s3 - s2 },
+            { etapa: '(3-4)', tiempo: 'Expansión',  q: null, w: wT,   ds: s4 - s3 },
+            { etapa: '(4-j)', tiempo: 'Tobera',     q: null, w: null, ds: sj - s4 }
         ];
 
         const seg = (sa, sb, Ta, Tb) => [{ x: sa, y: Ta }, { x: sb, y: Tb }];
 
-        // ── Rendimiento propulsivo vs v = V0/Vj
+        // ── Isobaras de referencia del diagrama T-s: T = Tref·exp((s − sref)/cp).
+        //    Cada tramo usa las propiedades del fluido de su zona para pasar
+        //    exactamente por sus estados (p0 por A con aire y por j con gases).
+        const isobara = (prop, Tref, sref, sa, sb) => {
+            const ss = this._linspace(sa, sb, 60);
+            return this._puntos(ss, ss.map(sv => Tref * Math.exp((sv - sref) / prop.cp)));
+        };
+        const ancho = sj - s0;
+        const sMin  = s0 - 0.05 * ancho;
+        const sMax  = sj + 0.08 * ancho;
+
+        // ── Rendimiento propulsivo vs v = V0/Vj (turborreactor)
         const v_ratio = this._linspace(p.v_min, p.v_max, p.n);
         const v_ej    = p.V0 / Vj;
 
         return {
-            tipo_ciclo: 'Turborreactor',
+            tipo_ciclo: 'Joule-Brayton',
             atmosfera:  atm,
             combustible: comb,
             estados,
             procesos,
-            magnitudes: {
-                wC, wT,                          // kJ/kg aire, kJ/kg gas
-                f, lambda: comb.f_est / f,       // dosado y exceso de aire relativo
-                Vj, E_esp,                       // m/s, N/(kg/s)
-                ma, mf, E,                       // kg/s, kg/s, N
-                TSFC, TSFC_h: TSFC * 3600,       // kg/(N·s), kg/(N·h)
-                P_compresor: ma * wC * 1000,     // W
-                eta_t, eta_p, eta_o,
+            empuje,
+            advertencias: [],
+            magnitudes: {                                       // ciclo del turborreactor
+                wC, wT, q_in,                                   // kJ/kg
+                f, lambda: comb.f_est / f,                      // dosado y exceso de aire relativo
+                Vj, mc, mf,                                     // m/s, kg/s
+                m_sl, m_total, delta1, theta1,                  // caudal SL → condición de vuelo
+                P_turbina: mc * wT * 1000,                      // W — turborreactor sin fan
+                E: E_tr,                                        // N — sin fan
+                propiedades: { aire, gas },
                 v_ej,
                 rel_critica, tobera_bloqueada
             },
             curvas: {
                 ts: [
-                    { nombre: 'Difusor',              puntos: seg(s0, s1, To0, To1) },
+                    { nombre: 'Difusor',              puntos: seg(s0, s1, T0,  To1) },
                     { nombre: 'Compresor',            puntos: seg(s1, s2, To1, To2) },
                     { nombre: 'Cámara de combustión', puntos: seg(s2, s3, To2, To3) },
                     { nombre: 'Turbina',              puntos: seg(s3, s4, To3, To4) },
                     { nombre: 'Tobera',               puntos: seg(s4, sj, To4, Tj)  }
+                ],
+                isobaras: [
+                    { nombre: 'p0 (aire)',   puntos: isobara(aire, T0,  s0, sMin, s2 + 0.35 * (s3 - s2)) },
+                    { nombre: 'p0 (gases)',  puntos: isobara(gas,  Tj,  sj, s2 + 0.55 * (s3 - s2), sMax) },
+                    { nombre: 'po3 (gases)', puntos: isobara(gas,  To3, s3, s2, sMax) }
                 ],
                 propulsivas: {
                     empuje_adimensional: this._puntos(v_ratio, v_ratio.map(v => 1 - v)),
                     rendimiento_prop:    this._puntos(v_ratio, v_ratio.map(v => 2 * v / (1 + v))),
                     potencia_empuje:     this._puntos(v_ratio, v_ratio.map(v => (1 - v) * v))
                 },
-                punto_operativo: { x: v_ej, y: 2 * v_ej / (1 + v_ej) }
+                // Punto de operación del motor calculado sobre las tres curvas
+                punto_operativo: {
+                    x: v_ej,
+                    empuje:   1 - v_ej,
+                    eta_p:    2 * v_ej / (1 + v_ej),
+                    potencia: v_ej * (1 - v_ej)
+                }
             }
         };
     },
 
     // ─── HELPERS DEL TURBORREACTOR ─────────────────────────────────────────────
-    // Potencia en W; acepta número o { valor, unidad: 'w' | 'kw' | 'hp' }.
-    _potenciaW: function(potencia) {
-        if (potencia === null || potencia === undefined) return null;
-        if (typeof potencia === 'number') return potencia;
-        switch ((potencia.unidad || 'w').toLowerCase()) {
-            case 'kw': return potencia.valor * 1000;
-            case 'hp': return potencia.valor * 745.7;
-            default:   return potencia.valor;
-        }
+    // Caudal en kg/s; acepta número o { valor, unidad: 'kg/s' | 'lb/s' }.
+    _caudalKgS: function(caudal) {
+        if (caudal === null || caudal === undefined) return null;
+        if (typeof caudal === 'number') return caudal;
+        return (caudal.unidad || '').toLowerCase() === 'lb/s'
+            ? caudal.valor * 0.45359237
+            : caudal.valor;
     },
 
     // Estequiometría del n-cetano: CₙHₘ + (n + m/4) O₂ → n CO₂ + m/2 H₂O
@@ -561,24 +669,18 @@ const CicloJouleBrayton = {
         return { M, nO2, AFR, f_est: 1 / AFR, Hc: c.cetano_Hc };
     },
 
-    _validarTurborreactor: function(p, W) {
+    _validarTurborreactor: function(p, m_sl) {
         const err = msg => { throw new Error(msg); };
-        if (!(W > 0))                          err('Potencia: debe ser un número positivo.');
-        if (!(p.V0 >= 0))                      err('V0: debe ser mayor o igual a 0.');
+        if (!(m_sl > 0))                       err('Caudal de aire SL: debe ser un número positivo.');
+        if (!(p.V0 >= 0))                      err('V0: debe ser mayor o igual a 0 (0 = despegue estático).');
         if (!(p.V1 > 0))                       err('V1: debe ser positiva.');
-        if (p.V1 > p.V0)                       err('V1 debe ser ≤ V0: el difusor desacelera la corriente.');
         if (!(p.rc > 1))                       err('Relación de compresión: debe ser mayor a 1.');
         if (!(p.dp_cc >= 0 && p.dp_cc < 100))  err('Δp cámara: debe estar entre 0 y 100 %.');
+        if (!(p.bpr >= 0))                     err('BPR: debe ser mayor o igual a 0.');
         ['eta_difusor', 'eta_compresor', 'eta_turbina', 'eta_tobera',
-         'eta_combustion', 'eta_mecanico'].forEach(function(clave) {
+         'eta_combustion', 'eta_mecanico', 'eta_fan'].forEach(function(clave) {
             if (!(p[clave] > 0 && p[clave] <= 1)) err(`${clave}: debe estar entre 0 y 1.`);
         });
-        if (!['empuje', 'eje', 'chorro'].includes(p.tipo_potencia)) {
-            err(`tipo_potencia no reconocido: ${p.tipo_potencia}`);
-        }
-        if (p.tipo_potencia === 'empuje' && !(p.V0 > 0)) {
-            err('Con potencia de empuje (E·V0) se requiere V0 > 0.');
-        }
     }
 };
 

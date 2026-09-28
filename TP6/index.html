@@ -10,11 +10,11 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
     <!-- Kendo UI for jQuery (local) -->
-    <link rel="stylesheet" href="../TP1/KENDO/styles/kendo.common.min.css">
-    <link rel="stylesheet" href="../TP1/KENDO/styles/kendo.default.min.css">
-    <link rel="stylesheet" href="../TP1/KENDO/styles/kendo.dataviz.min.css">
-    <link rel="stylesheet" href="../TP1/KENDO/styles/kendo.dataviz.default.min.css">
-    <script src="../TP1/KENDO/js/kendo.all.min.js"></script>
+    <link rel="stylesheet" href="./KENDO/styles/kendo.common.min.css">
+    <link rel="stylesheet" href="./KENDO/styles/kendo.default.min.css">
+    <link rel="stylesheet" href="./KENDO/styles/kendo.dataviz.min.css">
+    <link rel="stylesheet" href="./KENDO/styles/kendo.dataviz.default.min.css">
+    <script src="./KENDO/js/kendo.all.min.js"></script>
     
     <!-- Estilos propios -->
     <link rel="stylesheet" href="general.css">
@@ -41,34 +41,34 @@
                             <div class="form-group">
                                 <label for="altitud">Altitud (h):</label>
                                 <div class="campo-con-unidad">
-                                    <input type="text" id="altitud" name="altitud" class="parseado" placeholder="Ej: 4.900" data-tipo="altitud">
+                                    <input type="text" id="altitud" name="altitud" class="parseado" placeholder="Ej: 0 - 35.000" data-tipo="altitud">
                                     <select id="unidad-altitud" class="dropdown-unidad">
                                         <option value="m">m</option>
-                                        <option value="ft">ft</option>
+                                        <option value="ft" selected>ft</option>
                                     </select>
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="potencia">Potencia (W):</label>
+                                <label for="caudal" title="Caudal de aire total (núcleo + bypass) a nivel del mar, dato del fabricante">Caudal de aire SL (ṁ):</label>
                                 <div class="campo-con-unidad">
-                                    <input type="text" id="potencia" name="potencia" class="parseado" placeholder="Ej: 1.000" data-tipo="potencia">
-                                    <select id="unidad-potencia" class="dropdown-unidad">
-                                        <option value="kw">kW</option>
-                                        <option value="hp">HP</option>
+                                    <input type="text" id="caudal" name="caudal" class="parseado" placeholder="Ej: 34 - 34" data-tipo="caudal">
+                                    <select id="unidad-caudal" class="dropdown-unidad">
+                                        <option value="kg/s">kg/s</option>
+                                        <option value="lb/s">lb/s</option>
                                     </select>
                                 </div>
                             </div>
                             <div class="form-group">
                                 <label for="v0">V<sub>0</sub> Corriente libre [m/s]:</label>
-                                <input type="text" id="v0" name="v0" class="kendo-numeric" placeholder="250" data-tipo="velocidad">
+                                <input type="text" id="v0" name="v0" class="kendo-numeric" placeholder="0 - 184" data-tipo="velocidad">
                             </div>
                             <div class="form-group">
                                 <label for="v1">V<sub>1</sub> Entrada compresor [m/s]:</label>
-                                <input type="text" id="v1" name="v1" class="kendo-numeric" placeholder="150" data-tipo="velocidad">
+                                <input type="text" id="v1" name="v1" class="kendo-numeric" placeholder="150 - 150" data-tipo="velocidad">
                             </div>
                             <div class="form-group">
                                 <label for="relacion-compresion">Relación Compresión (RC):</label>
-                                <input type="text" id="relacion-compresion" name="relacion-compresion" class="kendo-numeric" placeholder="8" data-tipo="adimensional">
+                                <input type="text" id="relacion-compresion" name="relacion-compresion" class="kendo-numeric" placeholder="10" data-tipo="adimensional">
                             </div>
                             <div class="form-group">
                                 <label for="dp-cc">Δp<sub>cc</sub> Cámara [%]:</label>
@@ -76,7 +76,11 @@
                             </div>
                             <div class="form-group">
                                 <label for="t-lim">T<sub>lím</sub> Entrada turbina [K]:</label>
-                                <input type="text" id="t-lim" name="t-lim" class="kendo-numeric" placeholder="1.150" data-tipo="temperatura">
+                                <input type="text" id="t-lim" name="t-lim" class="kendo-numeric" placeholder="1.200" data-tipo="temperatura">
+                            </div>
+                            <div class="form-group">
+                                <label for="bpr">Bypass ratio (BPR):</label>
+                                <input type="text" id="bpr" name="bpr" class="kendo-numeric" placeholder="3,3" data-tipo="adimensional">
                             </div>
                             <div class="form-group">
                                 <label for="eta-difusor">Rend. Difusor (η<sub>d</sub>):</label>
@@ -84,11 +88,11 @@
                             </div>
                             <div class="form-group">
                                 <label for="eta-compresor">Rend. Compresor (η<sub>c</sub>):</label>
-                                <input type="text" id="eta-compresor" name="eta-compresor" class="kendo-numeric" placeholder="0,85" data-tipo="adimensional">
+                                <input type="text" id="eta-compresor" name="eta-compresor" class="kendo-numeric" placeholder="0,80" data-tipo="adimensional">
                             </div>
                             <div class="form-group">
                                 <label for="eta-turbina">Rend. Turbina (η<sub>T</sub>):</label>
-                                <input type="text" id="eta-turbina" name="eta-turbina" class="kendo-numeric" placeholder="0,91" data-tipo="adimensional">
+                                <input type="text" id="eta-turbina" name="eta-turbina" class="kendo-numeric" placeholder="0,88" data-tipo="adimensional">
                             </div>
                             <div class="form-group">
                                 <label for="eta-tobera">Rend. Tobera (η<sub>tob</sub>):</label>
@@ -114,30 +118,12 @@
                 <!-- Gráficos -->
                 <div class="graphs">
                     <div class="card graph">
-                        <div class="head">
-                            Gráfico P-V (Clapeyron)
-                            <select id="ciclo-pv">
-                                <option value="otto">Otto</option>
-                                <option value="diesel">Diesel</option>
-                                <option value="sabath">Sabathé</option>
-                            </select>
-                        </div>
-                        <div class="plot" id="plot-pv"></div>
-                    </div>
-                    <div class="card graph">
-                        <div class="head">
-                            Gráfico T-S
-                            <select id="ciclo-ts">
-                                <option value="otto">Otto</option>
-                                <option value="diesel">Diesel</option>
-                                <option value="sabath">Sabathé</option>
-                            </select>
-                        </div>
+                        <div class="head">Diagrama T-s — Turborreactor real (magnitudes de remanso)</div>
                         <div class="plot" id="plot-ts"></div>
                     </div>
                     <div class="card graph">
-                        <div class="head">η<sub>t</sub> vs Relación de Compresión</div>
-                        <div class="plot" id="plot-eta"></div>
+                        <div class="head">Empuje, rendimiento propulsivo y potencia de empuje vs V₀/Vⱼ</div>
+                        <div class="plot" id="plot-prop"></div>
                     </div>
                 </div>
 

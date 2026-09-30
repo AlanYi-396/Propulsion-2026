@@ -77,30 +77,22 @@ $(document).ready(function() {
             selectable: false,
             resizable: true,
             scrollable: false,
+            // T₁…T₄: remanso a la entrada/salida de compresor y turbina (estados 1–4)
             columns: [
-                { field: 'ciclo',      title: 'Ciclo',                                                        width: 70, attributes: { style: 'text-align: left'   } },
-                { field: 't1',         title: 'T₁ [K]',                                                       width: 65, attributes: { style: 'text-align: center' } },
-                { field: 't2',         title: 'T₂ [K]',                                                       width: 65, attributes: { style: 'text-align: center' } },
-                { field: 't3',         headerTemplate: 'T<sub>3</sub> [K]',                                   width: 65, attributes: { style: 'text-align: center' } },
-                { field: 't4',         title: 'T₄ [K]',                                                       width: 65, attributes: { style: 'text-align: center' } },
-                { field: 'qin',        headerTemplate: 'Q<sub>in</sub> [kCal/kg]',                            width: 95, attributes: { style: 'text-align: center' } },
-                { field: 'qout',       headerTemplate: 'Q<sub>out</sub> [kCal/kg]',                           width: 95, attributes: { style: 'text-align: center' } },
-                { field: 'wneto',      headerTemplate: 'W<sub>neto</sub> [kJ/kg]',                            width: 90, attributes: { style: 'text-align: center' } },
-                { field: 'eterma',     headerTemplate: 'η<sub>t</sub>',                                       width: 75, attributes: { style: 'text-align: center' } },
-                { field: 'cilindrada',  headerTemplate: 'V<sub>d</sub> [L]',                                   width: 70,  attributes: { style: 'text-align: center' } },
-                { field: 'disposicion', headerTemplate: 'Disposición',                                          width: 140, attributes: { style: 'text-align: center; font-size: 11px; white-space: nowrap;' } }
+                { field: 't1',     title: 'T₁ [K]',                               width: 65,  attributes: { style: 'text-align: center' } },
+                { field: 't2',     title: 'T₂ [K]',                               width: 65,  attributes: { style: 'text-align: center' } },
+                { field: 't3',     headerTemplate: 'T<sub>3</sub> [K]',           width: 65,  attributes: { style: 'text-align: center' } },
+                { field: 't4',     title: 'T₄ [K]',                               width: 65,  attributes: { style: 'text-align: center' } },
+                { field: 'qin',    headerTemplate: 'Q<sub>in</sub> [kCal/kg]',    width: 95,  attributes: { style: 'text-align: center' } },
+                { field: 'qout',   headerTemplate: 'Q<sub>out</sub> [kCal/kg]',   width: 95,  attributes: { style: 'text-align: center' } },
+                { field: 'wneto',  headerTemplate: 'W<sub>neto</sub> [kJ/kg]',    width: 90,  attributes: { style: 'text-align: center' } },
+                { field: 'es',     headerTemplate: 'E<sub>s</sub> [N·s/kg]',      width: 90,  attributes: { style: 'text-align: center' } },
+                { field: 'eta_th', headerTemplate: 'η<sub>th</sub>',              width: 70,  attributes: { style: 'text-align: center' } },
+                { field: 'eta_p',  headerTemplate: 'η<sub>p</sub>',               width: 70,  attributes: { style: 'text-align: center' } },
+                { field: 'eta_g',  headerTemplate: 'η<sub>G</sub>',               width: 70,  attributes: { style: 'text-align: center' } },
+                { field: 'mach',   headerTemplate: 'M<sub>0</sub>',               width: 60,  attributes: { style: 'text-align: center' } }
             ],
-            dataSource: { data: [] },
-            dataBound: function() {
-                const data = this.dataSource.data();
-                const $tbody = $(this.tbody);
-                data.forEach(function(item, idx) {
-                    const raw = parseFloat((item.t3 || '').replace(/\./g, '').replace(',', '.'));
-                    if (raw > 4800) {
-                        $tbody.find('tr').eq(idx).find('td').eq(3).addClass('alerta-t3');
-                    }
-                });
-            }
+            dataSource: { data: [] }
         });
     }
 
@@ -214,6 +206,30 @@ $(document).ready(function() {
         $('#tabla-estados').html(construirHTMLTabla(resultado));
     }
 
+    // ── TABLA RESUMEN ─────────────────────────────────────────────────────────
+    // Turborreactor sin fan (como la tabla de estados y los gráficos)
+    function cargarTablaResumen(resultado) {
+        const e  = resultado.estados;
+        const pr = resultado.prestaciones;
+        const pct = function(x) { return fmt(x * 100, 1) + ' %'; };
+        const grid = $('#tabla-resumen').data('kendoGrid');
+        if (!grid) return;
+        grid.dataSource.data([{
+            t1:     fmt(e[1].T, 2),
+            t2:     fmt(e[2].T, 2),
+            t3:     fmt(e[3].T, 2),
+            t4:     fmt(e[4].T, 2),
+            qin:    fmt(pr.q_in  / KJ_POR_KCAL, 3),
+            qout:   fmt(pr.q_out / KJ_POR_KCAL, 3),
+            wneto:  fmt(pr.w_neto, 2),
+            es:     fmt(pr.Es, 1),
+            eta_th: pct(pr.eta_th),
+            eta_p:  pct(pr.eta_p),
+            eta_g:  pct(pr.eta_G),
+            mach:   fmt(pr.M0, 3)
+        }]);
+    }
+
     // ── EVENTOS ───────────────────────────────────────────────────────────────
     function inicializarEventos() {
         $(document).on('click', '#btn-calcular', function(e) {
@@ -255,7 +271,7 @@ $(document).ready(function() {
             cargarTablaEstados(resultadoTurborreactor);
             renderizarGraficoTS(resultadoTurborreactor);
             renderizarGraficoPropulsivo(resultadoTurborreactor);
-            // TODO: resumen del ciclo
+            cargarTablaResumen(resultadoTurborreactor);
 
             resultadoTurborreactor.advertencias.forEach(function(msg) {
                 mostrarAlerta(msg, 'warning');

@@ -589,3 +589,27 @@ Confirmé la precarga: no era el gráfico del .py, pero el segundo gráfico corr
 Lo reescribí para que, igual que el diagrama T-s, arranque con ejes vacíos y construya todo desde el resultado de "Calcular": curvas de `resultado.curvas.propulsivas`, puntos notables leídos de esas curvas (máximo de potencia, extremos) y punto de operación.
 
 Ahora la única llamada al modelo es la del botón. Ajusté los ejes vacíos de ambos gráficos para que conserven el estilo antes del primer cálculo; verificado en Chrome.
+
+
+
+\---
+
+
+
+\## Prompt 23
+
+> "[Imagen adjunta: cuadro "Prestaciones: empuje y rendimientos" con Empuje específico Es = (1+f)·Vj − V0 ≈ 491 N·s/kg, Rendimiento térmico ηth = [(1+f)Vj² − V0²] / (2·f·Hc) ≈ 39 %, Rendimiento propulsivo ηp ≈ 2V0/(Vj + V0) ≈ 51 %, Rendimiento global ηG = ηth·ηp ≈ 20 % y Mach de vuelo M = V0/√(γ·R·TA) ≈ 0,78] Por último vamos a modificar el cuadro de "Resumen del Ciclo", requerimos que quites las siguientes columnas: Ciclo, nt, Vd [L] y Diposición. Y agrega al final las siguientes columnas que te paso como datos en esta imagen.
+
+> 
+
+> Coméntanos lo que interpretas de cada magnitud que te solicito incluir en el resumen. Vamos revisar que las estés interpretando correctamente."
+
+
+
+\### Resumen de respuesta
+
+Quité las columnas Ciclo, ηt, Vd y Disposición (y el código de pistoneros asociado) y agregué Es, ηth, ηp, ηG y M0 con las fórmulas de la imagen, calculadas en el modelo (`prestaciones`) para el turborreactor sin fan.
+
+Reinterpreté las columnas que quedan: T₁…T₄ = remanso en estados 1–4, Qin = calor de la cámara, Wneto = aumento de energía cinética del chorro y Qout = Qin − Wneto (calor que se va con el escape).
+
+Verifiqué que con las entradas y propiedades del Ej. 5 la app reproduce exactamente la imagen (490,7 N·s/kg; 39,3 %; 51,0 %; 20,0 %; 0,779); con cp/γ de gases calientes los valores cambian (521 N·s/kg, 33,5 %). Expliqué cada magnitud para su revisión.

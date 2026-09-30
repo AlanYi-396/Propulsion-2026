@@ -520,6 +520,22 @@ const CicloJouleBrayton = {
         const mf = f * mc;                                      // kg/s combustible
         const E_tr = mc * (Vj - p.V0);                          // N — turborreactor sin fan
 
+        // ── Prestaciones del turborreactor (sin fan), con las fórmulas del Ej. 5
+        //    Trabajo neto del ciclo abierto = aumento de energía cinética del chorro
+        const w_neto = ((1 + f) * Vj * Vj - p.V0 * p.V0) / 2 / 1000;   // kJ/kg aire
+        const eta_th = w_neto / (f * c.cetano_Hc);              // térmico: ΔEc / energía del combustible
+        const eta_pr = 2 * p.V0 / (Vj + p.V0);                  // propulsivo (≈, desprecia f)
+        const prestaciones = {
+            Es:     (1 + f) * Vj - p.V0,                        // N·s/kg — empuje específico
+            q_in,                                               // kJ/kg — calor aportado en la cámara
+            q_out:  q_in - w_neto,                              // kJ/kg — calor cedido con los gases de escape
+            w_neto,                                             // kJ/kg
+            eta_th,
+            eta_p:  eta_pr,
+            eta_G:  eta_th * eta_pr,                            // global
+            M0:     p.V0 / Math.sqrt(c.gamma * R * T0)          // Mach de vuelo (con T0 = TA)
+        };
+
         // ════ EMPUJE CON FAN (turbofán de flujos separados) ════
         const conFan = function(fpr) {
             const pof = fpr * po1;
@@ -609,6 +625,7 @@ const CicloJouleBrayton = {
             estados,
             procesos,
             empuje,
+            prestaciones,
             advertencias: [],
             magnitudes: {                                       // ciclo del turborreactor
                 wC, wT, q_in,                                   // kJ/kg

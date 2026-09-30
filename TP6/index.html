@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Motores de Ciclo Joule-Brayton - Predimensionamiento Aeronáutico</title>
+    <link rel="icon" type="image/jpeg" href="./assets/FAVICON.jpg">
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Kendo UI for jQuery (local) -->
+    <link rel="stylesheet" href="./KENDO/styles/kendo.common.min.css">
+    <link rel="stylesheet" href="./KENDO/styles/kendo.default.min.css">
+    <link rel="stylesheet" href="./KENDO/styles/kendo.dataviz.min.css">
+    <link rel="stylesheet" href="./KENDO/styles/kendo.dataviz.default.min.css">
+    <script src="./KENDO/js/kendo.all.min.js"></script>
+    
+    <!-- Estilos propios -->
+    <link rel="stylesheet" href="general.css">
+</head>
+<body>
+    <div id="app">
+        <div class="row">
+            <!-- Panel Izquierdo (30%) --> 
+            <div class="panel left">
+                <!-- Hero Section -->
+                <div class="card hero">
+                    <img class="hero-img" src="./assets/jt15d.webp" alt="Turbofán Pratt &amp; Whitney JT15D" style="border-radius: 5px;">
+                    <div class="hero-text">
+                        <div class="title">Predimensionador de Motores de Ciclo Joule-Brayton</div>
+                        <!--<div class="small">Cálculo de ciclos termodinámicos alternativos</div>-->
+                    </div>
+                </div>
+
+                <!-- Sección de Parámetros de Entrada -->
+                <div class="card inputs">
+                    <div class="medium" style="text-align: center;"><b>Parámetros de Entrada</b></div>
+                    <form id="parametros-form">
+                        <div class="form-columns">
+                            <div class="form-group">
+                                <label for="altitud">Altitud (h):</label>
+                                <div class="campo-con-unidad">
+                                    <input type="text" id="altitud" name="altitud" class="parseado" placeholder="Ej: 0 - 35.000" data-tipo="altitud">
+                                    <select id="unidad-altitud" class="dropdown-unidad">
+                                        <option value="m">m</option>
+                                        <option value="ft" selected>ft</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="caudal" title="Caudal de aire total (núcleo + bypass) a nivel del mar, dato del fabricante">Caudal de aire SL (ṁ):</label>
+                                <div class="campo-con-unidad">
+                                    <input type="text" id="caudal" name="caudal" class="parseado" placeholder="Ej: 34 - 34" data-tipo="caudal">
+                                    <select id="unidad-caudal" class="dropdown-unidad">
+                                        <option value="kg/s">kg/s</option>
+                                        <option value="lb/s">lb/s</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="v0">V<sub>0</sub> Corriente libre [m/s]:</label>
+                                <input type="text" id="v0" name="v0" class="kendo-numeric" placeholder="0 - 184" data-tipo="velocidad">
+                            </div>
+                            <div class="form-group">
+                                <label for="v1">V<sub>1</sub> Entrada compresor [m/s]:</label>
+                                <input type="text" id="v1" name="v1" class="kendo-numeric" placeholder="150 - 150" data-tipo="velocidad">
+                            </div>
+                            <div class="form-group">
+                                <label for="relacion-compresion">Relación Compresión (RC):</label>
+                                <input type="text" id="relacion-compresion" name="relacion-compresion" class="kendo-numeric" placeholder="10" data-tipo="adimensional">
+                            </div>
+                            <div class="form-group">
+                                <label for="dp-cc">Δp<sub>cc</sub> Cámara [%]:</label>
+                                <input type="text" id="dp-cc" name="dp-cc" class="kendo-numeric" placeholder="4" data-tipo="porcentaje">
+                            </div>
+                            <div class="form-group">
+                                <label for="t-lim">T<sub>lím</sub> Entrada turbina [K]:</label>
+                                <input type="text" id="t-lim" name="t-lim" class="kendo-numeric" placeholder="1.200" data-tipo="temperatura">
+                            </div>
+                            <div class="form-group">
+                                <label for="bpr">Bypass ratio (BPR):</label>
+                                <input type="text" id="bpr" name="bpr" class="kendo-numeric" placeholder="3,3" data-tipo="adimensional">
+                            </div>
+                            <div class="form-group">
+                                <label for="eta-difusor">Rend. Difusor (η<sub>d</sub>):</label>
+                                <input type="text" id="eta-difusor" name="eta-difusor" class="kendo-numeric" placeholder="0,92" data-tipo="adimensional">
+                            </div>
+                            <div class="form-group">
+                                <label for="eta-compresor">Rend. Compresor (η<sub>c</sub>):</label>
+                                <input type="text" id="eta-compresor" name="eta-compresor" class="kendo-numeric" placeholder="0,80" data-tipo="adimensional">
+                            </div>
+                            <div class="form-group">
+                                <label for="eta-turbina">Rend. Turbina (η<sub>T</sub>):</label>
+                                <input type="text" id="eta-turbina" name="eta-turbina" class="kendo-numeric" placeholder="0,88" data-tipo="adimensional">
+                            </div>
+                            <div class="form-group">
+                                <label for="eta-tobera">Rend. Tobera (η<sub>tob</sub>):</label>
+                                <input type="text" id="eta-tobera" name="eta-tobera" class="kendo-numeric" placeholder="0,95" data-tipo="adimensional">
+                            </div>
+                        </div>
+
+                        <div class="btns">
+                            <button type="reset" class="btn-secondary">Limpiar</button>
+                            <button type="button" id="btn-calcular" class="btn-primary">Calcular</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Panel Derecho (70%) -->
+            <div class="panel right">
+                <!-- Tabla Estados y Tiempos del Ciclo (cabecera generada por JS dentro de la tabla) -->
+                <div class="card shrink" style="padding: 0;">
+                    <table id="tabla-estados" style="margin: 0;"></table>
+                </div>
+
+                <!-- Gráficos -->
+                <div class="graphs">
+                    <div class="card graph">
+                        <div class="head">Diagrama T-s — Turborreactor real (magnitudes de remanso)</div>
+                        <div class="plot" id="plot-ts"></div>
+                    </div>
+                    <div class="card graph">
+                        <div class="head">Empuje, rendimiento propulsivo y potencia de empuje vs V₀/Vⱼ</div>
+                        <div class="plot" id="plot-prop"></div>
+                    </div>
+                </div>
+
+                <!-- Resumen del Ciclo -->
+                <div class="card summary shrink">
+                    <div class="head">Resumen del Ciclo</div>
+                    <table id="tabla-resumen">
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts propios -->
+    <script src="componentes/ciclo-joule-brayton.js"></script>
+    <script src="behaviour.js"></script>
+</body>
+</html>
